@@ -3,12 +3,13 @@ const fs = require("fs");
 const express = require('express');
 const glob = require("glob");
 const {v1: uuidv1} = require('uuid');
-const {Simulate} = require('react-dom/test-utils');
 const {JSDOM} = require('jsdom');
 
 const hostNodeModulesPath = `${process.cwd()}/node_modules`;
+
 const React = require(`${hostNodeModulesPath}/react`);
 const ReactDOM = require(`${hostNodeModulesPath}/react-dom`);
+const {Simulate} = require(`${hostNodeModulesPath}/react-dom/test-utils`);
 
 
 const findModulesWithComponents = searchPath => {
