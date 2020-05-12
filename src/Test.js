@@ -4,9 +4,7 @@ import {
   Route,
 } from "react-router-dom";
 import queryString from "query-string";
-import CssBaseline from '@material-ui/core/CssBaseline';
 import Typography from '@material-ui/core/Typography';
-import Container from '@material-ui/core/Container';
 import Button from "@material-ui/core/Button";
 import ExpansionPanel from "@material-ui/core/ExpansionPanel";
 import ExpansionPanelSummary from "@material-ui/core/ExpansionPanelSummary";
@@ -75,13 +73,13 @@ export default function Test({match: {url}, location: {search}, history}) {
         setTest(test);
         setSteps(test.steps);
       })
-  }, [testId, file, exportName]);
+  }, [testId, file, exportName, search]);
 
   useEffect(() => {
     fetch(`/test/${testId}/run${search}`)
       .then(res => res.json())
       .then(setStepResults)
-  }, [testId, file, exportName, steps]);
+  }, [testId, file, exportName, steps, search]);
 
   const save = steps => {
     setSteps(

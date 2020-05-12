@@ -2,11 +2,13 @@ const path = require("path");
 const fs = require("fs");
 const express = require('express');
 const glob = require("glob");
-const uuidv1 = require('uuid/v1');
-const React = require('react');
-const ReactDOM = require('react-dom');
-const {Simulate, act} = require('react-dom/test-utils');
+const {v1: uuidv1} = require('uuid');
+const {Simulate} = require('react-dom/test-utils');
 const {JSDOM} = require('jsdom');
+
+const hostNodeModulesPath = `${process.cwd()}/node_modules`;
+const React = require(`${hostNodeModulesPath}/react`);
+const ReactDOM = require(`${hostNodeModulesPath}/react-dom`);
 
 
 const findModulesWithComponents = searchPath => {
@@ -313,12 +315,13 @@ function getNodeText(node) {
 
 const queryAllByText = (container, text) => {
   return Array.from(container.querySelectorAll('*'))
-    .filter(node => {console.log(getNodeText(node)); return getNodeText(node) === text})
+    .filter(node => getNodeText(node) === text)
 };
 
 const runAssertionStep = (step, container) => {
   if (step.assertionType === 'textIsPresent') {
     const matches = queryAllByText(container, step.assertionValue);
+    console.log(container.innerHTML)
     return matches.length ? 'success' : 'error';
   }
   return 'error';
