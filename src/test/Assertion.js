@@ -21,7 +21,6 @@ export default function Assertion({location: {search}, onAdd, onClose}) {
   const [target, setTarget] = useState('');
   const [regions, setRegions] = useState([]);
   const [assertionType, setAssertionType] = useState('elementIsPresent');
-  const [assertionValue, setAssertionValue] = useState('');
   const {file, exportName} = queryString.parse(search);
 
   useEffect(() => {
@@ -34,11 +33,7 @@ export default function Assertion({location: {search}, onAdd, onClose}) {
     onAdd({
       type: 'assertion',
       assertionType,
-      ...(assertionType === 'elementIsPresent' ? {
-        xpath: target
-      } : {
-        assertionValue
-      })
+      target
     });
 
     onClose();
@@ -85,8 +80,8 @@ export default function Assertion({location: {search}, onAdd, onClose}) {
           >
             {!!regions.length && regions.map(r =>
               <FormControlLabel
-                value={r.xpath}
-                label={r.name}
+                value={r.name}
+                label={r.name + (r.unique ? '' : ' (not unique)')}
                 control={<Radio />}
                 key={r.name}
               />
@@ -98,8 +93,8 @@ export default function Assertion({location: {search}, onAdd, onClose}) {
           label="Text"
           variant="outlined"
           margin="dense"
-          onChange={({target: {value}}) => setAssertionValue(value)}
-          value={assertionValue}
+          onChange={({target: {value}}) => setTarget(value)}
+          value={target}
           fullWidth
           autoFocus
         />}

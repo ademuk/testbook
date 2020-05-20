@@ -19,7 +19,7 @@ export default function Event({location: {search}, onAdd, onClose}) {
   const {testId} = useParams();
   const [regions, setRegions] = useState([]);
   const [eventType, setEventType] = useState('click');
-  const [xpath, setXpath] = useState('');
+  const [target, setTarget] = useState('');
   const {file, exportName} = queryString.parse(search);
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export default function Event({location: {search}, onAdd, onClose}) {
     onAdd({
       type: 'event',
       eventType,
-      xpath
+      target
     });
 
     onClose();
@@ -51,14 +51,14 @@ export default function Event({location: {search}, onAdd, onClose}) {
           <FormLabel component="legend">Target</FormLabel>
           <RadioGroup
             name="target"
-            value={xpath}
-            onChange={({target: {value}}) => setXpath(value)}
+            value={target}
+            onChange={({target: {value}}) => setTarget(value)}
             aria-label="target"
           >
             {!!regions.length && regions.map(r =>
               <FormControlLabel
-                value={r.xpath}
-                label={r.name}
+                value={r.name}
+                label={r.name + (r.unique ? '' : ' (not unique)')}
                 control={<Radio />}
                 key={r.name}
               />

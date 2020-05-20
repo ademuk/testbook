@@ -270,26 +270,32 @@ const getElementTreeXPath = element => {
   return paths.length ? "/" + paths.join("/") : null;
 };
 
+const findClickableElements = container =>
+  Array.from(
+    container.querySelectorAll('a, button')
+  );
+
 const renderComponentRegions = (file, exportName, testId) => {
   const container = render(file, exportName);
 
-  const elements = Array.from(
-    container.querySelectorAll('a, button')
-  );
+  const elements = findClickableElements(container).map(e => ({
+    name: e.textContent.trim(),
+    xpath: getElementTreeXPath(e)
+  }));
 
   return new Promise((resolve) => {
     resolve(
       elements.map(e => ({
-        name: e.textContent,
-        xpath: getElementTreeXPath(e)
+        ...e,
+        unique: !elements.find(f => f.name === e.name && f.xpath !== e.xpath)
       }))
     );
   });
 };
 
-const runEventStep = ({eventType, xpath}, container) => {
-  const target = document.evaluate( xpath, container, null, XPathResult.ANY_TYPE, null );
-  const node = target.iterateNext();
+const runEventStep = ({eventType, target}, container) => {
+  const node = findClickableElements(container)
+    .find(e => e.textContent.trim() === target);
 
   if (!node) {
     return 'error';
@@ -321,8 +327,7 @@ const queryAllByText = (container, text) => {
 
 const runAssertionStep = (step, container) => {
   if (step.assertionType === 'textIsPresent') {
-    const matches = queryAllByText(container, step.assertionValue);
-    console.log(container.innerHTML)
+    const matches = queryAllByText(container, step.target);
     return matches.length ? 'success' : 'error';
   }
   return 'error';
@@ -334,11 +339,9 @@ const STEP_RUNNERS = {
   assertion: runAssertionStep,
 };
 
-const runStep = (step, container) => {
-  return {
-    result: STEP_RUNNERS[step.type](step, container),
-  };
-};
+const runStep = (step, container) => ({
+  result: STEP_RUNNERS[step.type](step, container),
+});
 
 const runComponentTest = (file, exportName, testId) =>
   getComponentTest(file, exportName, testId)
