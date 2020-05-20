@@ -3,15 +3,16 @@ import {
   BrowserRouter as Router,
   Switch,
   Route,
+  Link
 } from "react-router-dom";
 
-import './App.css';
 import Typography from "@material-ui/core/Typography";
 import CssBaseline from "@material-ui/core/CssBaseline";
+import Container from "@material-ui/core/Container";
 import Components from "./Components";
 import Tests from "./Tests";
 import Test from "./Test";
-import Container from "@material-ui/core/Container";
+import './App.css';
 
 
 const App = () =>
@@ -19,7 +20,7 @@ const App = () =>
     <CssBaseline />
     <Container maxWidth="md">
       <Typography variant="h4" component="h1" gutterBottom>
-        Testbook
+        <Link to={'/'}>Testbook</Link>
       </Typography>
       <Switch>
         <Route path="/tests/:testId" component={Test} />

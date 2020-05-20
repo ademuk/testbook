@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {
   useParams,
-  Route,
+  Route, Link,
 } from "react-router-dom";
 import queryString from "query-string";
 import Typography from '@material-ui/core/Typography';
@@ -106,10 +106,10 @@ export default function Test({match: {url}, location: {search}, history}) {
   return (
     <>
       <Typography variant="h5">
-        {file} / {exportName}
+        Test {test.id}
       </Typography>
       <Typography variant="h6" gutterBottom>
-        Test {test.id}
+        {file} / <Link to={`/tests/?file=${file}&exportName=${exportName}`}>{exportName}</Link>
       </Typography>
 
       <div>

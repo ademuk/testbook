@@ -30,8 +30,12 @@ export default function Tests({history, location: {search}}) {
   return (
     <div>
       <Typography variant="h5">
-        {file} / {exportName} Tests
+        Tests
       </Typography>
+      <Typography variant="h6" gutterBottom>
+       {file} / {exportName}
+      </Typography>
+
 
       <List component="nav" aria-label="main mailbox folders">
         {!!tests && tests.map(
@@ -45,6 +49,11 @@ export default function Tests({history, location: {search}}) {
             </ListItem>
           )
         )}
+        {
+          !tests.length && <div>
+            No tests yet
+          </div>
+        }
       </List>
 
       <Button
