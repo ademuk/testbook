@@ -2,10 +2,10 @@
 
 const concurrently = require('concurrently');
 
-const path = `${__dirname}/..`;
+const testbookRootPath = `${__dirname}/..`;
 
 concurrently([
-  `${path}/node_modules/.bin/nodemon --exec ${path}/node_modules/.bin/babel-node ${path}/src/server.js`,
+  `${testbookRootPath}/node_modules/.bin/nodemon --exec ${testbookRootPath}/node_modules/.bin/babel-node ${testbookRootPath}/src/server.js`,
   `npm start --prefix ${__dirname}/../`,
 ], {
   prefix: 'name',
