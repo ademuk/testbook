@@ -25,40 +25,80 @@ const findModulesWithComponents = searchPath => {
         if (err) {
           return reject(err)
         }
-        resolve(
-          files
-            .map(loadModuleWithComponents)
-            .filter(m => !m.error && m.components.length)
-        );
+
+        Promise.all(files.map(loadModuleWithComponents))
+          .then(m => m.filter(m => !m.error && m.components.length))
+          .then(resolve)
       }
     );
   });
 };
+
+const compileModuleWithWebpack = (modulePath) => {
+  const webpack = require("webpack");
+
+  const craWebpackConfig = require(`${hostNodeModulesPath}/react-scripts/config/webpack.config`)(process.env.NODE_ENV);
+  const config = {
+    ...craWebpackConfig,
+    entry: [path.resolve(modulePath)],
+    output: {
+      filename: modulePath,
+      libraryTarget: 'umd'
+    },
+    optimization: {
+      ...craWebpackConfig.optimization,
+      splitChunks: false,
+      runtimeChunk: false
+    },
+    externals: {
+      'react': 'react',
+      'react-dom' : 'reactDOM'
+    }
+  };
+
+  return new Promise((resolve, reject) => {
+    webpack(config, (err, stats) => {
+      if (err) {
+        return reject(err);
+      }
+
+      if (stats.hasErrors()) {
+        return reject(stats.toJson().errors);
+      };
+
+      return resolve(path.resolve(path.join(stats.toJson().outputPath, modulePath)));
+    });
+  });
+};
+
 
 const loadModuleWithComponents = modulePath => {
   const {window} = createDOM();
   global.document = window.document;
   global.window = window;
 
-  try {
-    console.log(`Loading file: ${modulePath}`);
+  return compileModuleWithWebpack(modulePath)
+    .then((compiledModulePath) => {
+      try {
+        console.log(`Loading file: ${modulePath}`);
 
-    return {
-      file: modulePath,
-      components: findComponentsInModule(
-        require(path.resolve(modulePath))
-      )
-    };
-  }
-  catch(error) {
-    console.log(`Load failed ${error}`);
+        return {
+          file: modulePath,
+          components: findComponentsInModule(
+            require(compiledModulePath)
+          )
+        };
+      }
+      catch(error) {
+        console.log(`Load failed ${error}`);
 
-    return {
-      file: modulePath,
-      components: [],
-      error
-    };
-  }
+        return {
+          file: modulePath,
+          components: [],
+          error
+        };
+      }
+    });
 };
 
 const findComponentsInModule = module =>
@@ -120,7 +160,9 @@ const writeFile = (file, payload) =>
   );
 
 const createDOM = () =>
-  new JSDOM('<!doctype html><html><body></body></html>');
+  new JSDOM('<!doctype html><html><body></body></html>', {
+    url: 'http://localhost'
+  });
 
 const getOrCreateComponent = (fileJson, exportName) => {
   const component = fileJson.components.find(c => c.name === exportName);
@@ -207,31 +249,32 @@ function copyProps(src, target) {
 }
 
 const render = (file, exportName) => {
-  const {[exportName]: Component} = require(path.resolve(file));
+  return compileModuleWithWebpack(file)
+    .then((compiledModulePath) => {
+      const {window} = createDOM();
+      global.document = window.document;
+      global.window = window;
 
-  const {window} = createDOM();
-  global.document = window.document;
-  global.window = window;
+      const {[exportName]: Component} = require(compiledModulePath);
 
-  // https://github.com/enzymejs/enzyme/blob/master/docs/guides/jsdom.md#using-enzyme-with-jsdom
-  copyProps(window, global);
+      // https://github.com/enzymejs/enzyme/blob/master/docs/guides/jsdom.md#using-enzyme-with-jsdom
+      copyProps(window, global);
 
-  const container = document.createElement('div');
+      const container = document.createElement('div');
 
-  document.body.appendChild(container);
+      document.body.appendChild(container);
+      const props = {};
+      ReactDOM.render(
+        React.createElement(
+          Component,
+          props,
+          null
+        ),
+        container
+      );
 
-  const props = {};
-
-  ReactDOM.render(
-    React.createElement(
-      Component,
-      props,
-      null
-    ),
-    container
-  );
-
-  return container;
+      return container;
+    });
 };
 
 const getElementTreeXPath = element => {
@@ -276,21 +319,18 @@ const findClickableElements = container =>
   );
 
 const renderComponentRegions = (file, exportName, testId) => {
-  const container = render(file, exportName);
+  return render(file, exportName)
+    .then((container) => {
+      const elements = findClickableElements(container).map(e => ({
+        name: e.textContent.trim(),
+        xpath: getElementTreeXPath(e)
+      }));
 
-  const elements = findClickableElements(container).map(e => ({
-    name: e.textContent.trim(),
-    xpath: getElementTreeXPath(e)
-  }));
-
-  return new Promise((resolve) => {
-    resolve(
-      elements.map(e => ({
+      return elements.map(e => ({
         ...e,
         unique: !elements.find(f => f.name === e.name && f.xpath !== e.xpath)
-      }))
-    );
-  });
+      }));
+    });
 };
 
 const runEventStep = ({eventType, target}, container) => {
@@ -344,12 +384,15 @@ const runStep = (step, container) => ({
 });
 
 const runComponentTest = (file, exportName, testId) =>
-  getComponentTest(file, exportName, testId)
-    .then(({steps}) =>
+  Promise.all([
+    getComponentTest(file, exportName, testId),
+    render(file, exportName)
+  ])
+    .then(([{steps}, container]) =>
       steps.reduce(([results, container], step) => [
         [...results, runStep(step, container)],
         container
-      ], [[], render(file, exportName)])
+      ], [[], container])
     );
 
 
@@ -414,11 +457,12 @@ app.get(
 
 app.get(
   '/test/:testId/run',
-  (req, res) =>
+  (req, res, next) =>
     runComponentTest(req.query.file, req.query.exportName, req.params.testId)
       .then(
         ([results]) => res.send(results)
       )
+      .catch(next)
 );
 
 app.listen(
