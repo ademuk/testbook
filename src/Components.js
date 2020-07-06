@@ -1,12 +1,9 @@
 import React, {useState, useEffect} from 'react';
-import {
-  Link
-} from "react-router-dom";
 import Typography from "@material-ui/core/Typography";
 import List from "@material-ui/core/List";
 import ListSubheader from "@material-ui/core/ListSubheader";
-import ListItem from "@material-ui/core/ListItem";
-import ListItemText from "@material-ui/core/ListItemText";
+import ListItemLink from "./ListItemLink";
+
 
 export default function Components() {
   const [files, setFiles] = useState();
@@ -33,17 +30,12 @@ export default function Components() {
                 {f.file}
               </ListSubheader>
             }
+            key={f.file}
           >
             <div key={f.file}>
-              {f.components.map(c => (
-                <ListItem
-                  component={props => <Link to={`/tests?file=${f.file}&exportName=${c.name}`} {...props} />}
-                  button
-                  key={f.file}
-                >
-                  <ListItemText primary={c.name} />
-                </ListItem>
-              ))}
+              {f.components.map(c =>
+                <ListItemLink to={`/tests?file=${f.file}&exportName=${c.name}`} primary={c.name} key={c.name} />
+              )}
             </div>
           </List>
         )

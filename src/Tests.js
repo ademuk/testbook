@@ -1,13 +1,9 @@
 import React, {useEffect, useState} from 'react';
-import {
-  Link
-} from "react-router-dom";
 import queryString from "query-string";
 import Typography from "@material-ui/core/Typography";
 import Button from "@material-ui/core/Button";
 import List from "@material-ui/core/List";
-import ListItem from "@material-ui/core/ListItem";
-import ListItemText from "@material-ui/core/ListItemText";
+import ListItemLink from "./ListItemLink";
 
 
 const handleSave = (file, exportName, cb) =>
@@ -38,15 +34,8 @@ export default function Tests({history, location: {search}}) {
       
       <List component="nav" aria-label="main mailbox folders">
         {!!tests && tests.map(
-          t => (
-            <ListItem
-              component={props => <Link to={`/tests/${t.id}?file=${file}&exportName=${exportName}`} {...props} />}
-              button
-              key={t.id}
-            >
-              <ListItemText primary={t.id} />
-            </ListItem>
-          )
+          t =>
+            <ListItemLink to={`/tests/${t.id}?file=${file}&exportName=${exportName}`} primary={t.id} key={t.id} />
         )}
         {
           !tests.length && <div>
