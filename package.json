@@ -1,5 +1,5 @@
 {
-  "name": "testbook",
+  "name": "@ademuk/testbook",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
@@ -23,7 +23,7 @@
   },
   "devDependencies": {},
   "bin": {
-    "testbook": "./bin/cli.js"
+    "testbook": "bin/cli.js"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -46,5 +46,20 @@
       "last 1 safari version"
     ]
   },
-  "proxy": "http://localhost:9010"
+  "proxy": "http://localhost:9010",
+  "description": "This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ademuk/testbook.git"
+  },
+  "keywords": [
+    "testing"
+  ],
+  "author": "Adem Gaygusuz",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ademuk/testbook/issues"
+  },
+  "homepage": "https://github.com/ademuk/testbook#readme"
 }

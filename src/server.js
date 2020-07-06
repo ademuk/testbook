@@ -467,5 +467,5 @@ app.get(
 
 app.listen(
   PORT,
-  () => console.log(`Started Testbook listening on port ${PORT}.`)
+  () => console.log(`Started Testbook server listening on port ${PORT}.`)
 );
