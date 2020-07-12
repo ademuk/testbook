@@ -1,9 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import queryString from "query-string";
-import Typography from "@material-ui/core/Typography";
-import Button from "@material-ui/core/Button";
-import List from "@material-ui/core/List";
-import ListItemLink from "./ListItemLink";
+import {Link} from "react-router-dom";
+import StatusLink from "./StatusLink";
 
 
 const handleSave = (file, exportName, cb) =>
@@ -25,38 +23,40 @@ export default function Tests({history, location: {search}}) {
 
   return (
     <div>
-      <Typography variant="h5">
-        Tests
-      </Typography>
-      <Typography variant="h6" gutterBottom>
-       {file} / {exportName}
-      </Typography>
-      
-      <List component="nav" aria-label="main mailbox folders">
-        {!!tests && tests.map(
-          t =>
-            <ListItemLink to={`/tests/${t.id}?file=${file}&exportName=${exportName}`} primary={t.id} key={t.id} />
+      <div className="block text-gray-700 text-lg font-semibold py-2 px-2">
+        {file}
+      </div>
+      <div className="block text-gray-700 text-lg font-semibold py-2 px-2">
+        {exportName}
+      </div>
+
+      <div className="py-3">
+        {!!tests && tests.map(t =>
+          <StatusLink
+            link={`/tests/${t.id}?file=${file}&exportName=${exportName}`}
+            key={t.id}
+          >
+            {t.id}
+          </StatusLink>
         )}
         {
           !tests.length && <div>
             No tests yet
           </div>
         }
-      </List>
+      </div>
 
-      <Button
-        onClick={
-          () => handleSave(
-            file,
-            exportName,
-            ({id}) => history.push(`/tests/${id}?file=${file}&exportName=${exportName}`)
-          )
-        }
-        variant="contained"
-        color="primary"
+      <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+              onClick={
+                () => handleSave(
+                  file,
+                  exportName,
+                  ({id}) => history.push(`/tests/${id}?file=${file}&exportName=${exportName}`)
+                )
+              }
       >
         New Test
-      </Button>
+      </button>
     </div>
   )
  }

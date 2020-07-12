@@ -4,57 +4,20 @@ import {
   Route, Link,
 } from "react-router-dom";
 import queryString from "query-string";
-import Typography from '@material-ui/core/Typography';
-import Button from "@material-ui/core/Button";
-import ExpansionPanel from "@material-ui/core/ExpansionPanel";
-import ExpansionPanelSummary from "@material-ui/core/ExpansionPanelSummary";
-import ExpansionPanelDetails from "@material-ui/core/ExpansionPanelDetails";
-import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
-import {makeStyles} from "@material-ui/core/styles";
-import ButtonGroup from "@material-ui/core/ButtonGroup";
 import Assertion from "./test/Assertion";
 import Event from "./test/Event";
-import Box from "@material-ui/core/Box";
+import StatusLink from "./StatusLink";
 
 
-const Step = ({step, result: {result}, expanded, onExpandChange}) => {
-  const useStyles = makeStyles(theme => ({
-    root: {
-      width: '100%',
-    },
-    heading: {
-      fontSize: theme.typography.pxToRem(15),
-      flexBasis: '33.33%',
-      flexShrink: 0,
-    },
-    secondaryHeading: {
-      fontSize: theme.typography.pxToRem(15),
-      color: theme.palette.text.secondary,
-    },
-  }));
-
-  const classes = useStyles();
-
+const Step = ({step, result: {result}}) => {
   const {type, ...rest} = step;
-
   return (
-    <ExpansionPanel expanded={expanded} onChange={onExpandChange}>
-      <ExpansionPanelSummary
-        expandIcon={<ExpandMoreIcon />}
-      >
-        <Typography className={classes.heading}>
-          {type}
-        </Typography>
-        <Typography className={classes.secondaryHeading}>
-          {result}
-        </Typography>
-      </ExpansionPanelSummary>
-      <ExpansionPanelDetails>
-        <Typography>
-          {JSON.stringify(rest, null, 2)}
-        </Typography>
-      </ExpansionPanelDetails>
-    </ExpansionPanel>
+    <StatusLink
+      status={result}
+      subText={result}
+    >
+      {type} {JSON.stringify(rest, null, 2)}
+    </StatusLink>
   )
 };
 
@@ -105,42 +68,37 @@ export default function Test({match: {url}, location: {search}, history}) {
 
   return (
     <>
-      <Typography variant="h5">
+      <div className="block text-gray-700 text-lg font-semibold py-2 px-2">
+        {file}
+      </div>
+      <div className="block text-gray-700 text-lg font-semibold py-2 px-2">
+        <Link to={`/tests/?file=${file}&exportName=${exportName}`}>{exportName}</Link>
+      </div>
+      <div className="block text-gray-700 text-lg font-semibold py-2 px-2">
         Test {test.id}
-      </Typography>
-      <Typography variant="h6" gutterBottom>
-        {file} / <Link to={`/tests/?file=${file}&exportName=${exportName}`}>{exportName}</Link>
-      </Typography>
+      </div>
 
-      <div>
+      <div className="my-3">
         {!!steps && steps.map((step, i) =>
           <Step
             step={step}
             result={stepResults[i] || {}}
-            expanded={expanded === i}
-            onExpandChange={handleExpandChange(i)}
             key={i}
           />
         )}
       </div>
-      <Box marginTop={2}>
-        <ButtonGroup>
-          <Button
-            onClick={() => history.push(`${url}/event${search}`)}
-            variant="contained"
-            color="primary"
-          >
-            Event
-          </Button>
-          <Button
-            onClick={() => history.push(`${url}/assertion${search}`)}
-            variant="contained"
-            color="primary"
-          >
-            Assertion
-          </Button>
-        </ButtonGroup>
-      </Box>
+
+      <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mr-2"
+              onClick={() => history.push(`${url}/event${search}`)}
+      >
+        Add Event
+      </button>
+
+      <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+              onClick={() => history.push(`${url}/assertion${search}`)}
+      >
+        Add Assertion
+      </button>
 
       <Route path={`${url}/assertion`} render={({location}) => (
         <Assertion

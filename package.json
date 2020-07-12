@@ -18,6 +18,7 @@
     "react-dom": "^16.13.1",
     "react-router-dom": "^5.1.2",
     "react-scripts": "3.3.1",
+    "tailwindcss": "^1.4.6",
     "uuid": "^8.0.0"
   },
   "devDependencies": {},
@@ -28,7 +29,10 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "build:tailwind": "tailwindcss build src/index.tailwind.css -o src/index.css",
+    "prestart": "npm run build:tailwind",
+    "prebuild": "npm run build:tailwind"
   },
   "eslintConfig": {
     "extends": "react-app"
