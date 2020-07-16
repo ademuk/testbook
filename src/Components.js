@@ -26,12 +26,11 @@ const Module = ({module}) => (
           <div className="py-3">
           {module.components.map(c =>
             <StatusLink
-              link={`/tests?file=${module.file}&exportName=${c.name}`}
-              key={c.name}
+              link={`/tests?file=${module.file}&exportName=${c.exportName}`}
+              key={c.exportName}
             >
               {c.name}
             </StatusLink>
-
           )}
           </div>
 
@@ -59,12 +58,23 @@ export default function Components() {
   }, []);
 
   return (
-    <div>
+    <div className="p-3">
       {!!files && files.map(
         f => (
           <Module module={f} key={f.file} />
         )
       )}
+      {!files &&
+        <div className="flex h-screen">
+          <div className="m-auto text-center">
+            <div className="inline-block loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-16 w-16" />
+            <div className="mt-2 text-gray-700 font-medium">Searching for components...</div>
+          </div>
+        </div>
+      }
+      {
+        (files && !files.length) && <div>No Components were found</div>
+      }
     </div>
   )
 }

@@ -27,7 +27,10 @@ const findModulesWithComponents = searchPath => {
         }
 
         Promise.all(files.map(loadModuleWithComponents))
-          .then(m => m.filter(m => !m.error && m.components.length))
+          .then(m =>
+            m.filter(m => !m.error && m.components.length)
+              .map(m => ({...m, file: m.file.replace(new RegExp(`^src${path.sep}`), '')}))
+          )
           .then(resolve)
       }
     );
@@ -81,11 +84,13 @@ const loadModuleWithComponents = modulePath => {
     .then((compiledModulePath) => {
       try {
         console.log(`Loading file: ${modulePath}`);
-
         return {
           file: modulePath,
           components: findComponentsInModule(
-            require(compiledModulePath)
+            require(compiledModulePath), modulePath
+          ).sort(
+            (a, b) =>
+              b.exportName === 'default' ? 1: -1
           )
         };
       }
@@ -101,12 +106,28 @@ const loadModuleWithComponents = modulePath => {
     });
 };
 
-const findComponentsInModule = module =>
+
+const getExportComponentName = (exportName, filePath) => {
+  if (exportName === 'default') {
+    const fileName = path.parse(filePath).name;
+
+    if (fileName === 'index') {
+      return path.basename(path.dirname(filePath));
+    }
+
+    return fileName
+  }
+
+  return exportName;
+};
+
+
+const findComponentsInModule = (module, modulePath) =>
   Object.keys(module)
     .map(
-      name => ({
-        name,
-        returnValue: React.createElement(module[name])
+      exportName => ({
+        exportName,
+        returnValue: React.createElement(module[exportName])
       })
     )
     .filter(({returnValue}) => {
@@ -117,7 +138,7 @@ const findComponentsInModule = module =>
       return !!container;
     })
     .map(
-      ({name}) => ({name})
+      ({exportName}) => ({name: getExportComponentName(exportName, modulePath), exportName})
     );
 
 const getComponent = (file, exportName) =>
@@ -401,10 +422,12 @@ const PORT = 9010;
 
 app.use(express.json());
 
+const SEARCH_PATH = './src';
+
 app.get(
   '/component',
   (req, res) =>
-    findModulesWithComponents('./src')
+    findModulesWithComponents(SEARCH_PATH)
       .then(
         modulesWithComponents => res.send(modulesWithComponents)
       )
@@ -413,7 +436,7 @@ app.get(
 app.get(
   '/test',
   (req, res) =>
-    getComponentTests(req.query.file, req.query.exportName)
+    getComponentTests(path.join(SEARCH_PATH, req.query.file), req.query.exportName)
       .then(
         test => res.send(test)
       )
@@ -422,7 +445,7 @@ app.get(
 app.get(
   '/test/:testId',
   (req, res) =>
-    getComponentTest(req.query.file, req.query.exportName, req.params.testId)
+    getComponentTest(path.join(SEARCH_PATH, req.query.file), req.query.exportName, req.params.testId)
       .then(
         test => res.send(test)
       )
@@ -431,7 +454,7 @@ app.get(
 app.post(
   '/test',
   (req, res) =>
-    createTest(req.query.file, req.query.exportName)
+    createTest(path.join(SEARCH_PATH, req.query.file), req.query.exportName)
       .then(
         test => res.send(test)
       )
@@ -440,7 +463,7 @@ app.post(
 app.put(
   '/test/:testId/steps',
   (req, res) =>
-    updateTestSteps(req.query.file, req.query.exportName, req.params.testId, req.body)
+    updateTestSteps(path.join(SEARCH_PATH, req.query.file), req.query.exportName, req.params.testId, req.body)
       .then(
         test => res.send(test)
       )
@@ -449,7 +472,7 @@ app.put(
 app.get(
   '/test/:testId/render/regions',
   (req, res) =>
-    renderComponentRegions(req.query.file, req.query.exportName, req.params.testId)
+    renderComponentRegions(path.join(SEARCH_PATH, req.query.file), req.query.exportName, req.params.testId)
       .then(
         test => res.send(test)
       )
@@ -458,7 +481,7 @@ app.get(
 app.get(
   '/test/:testId/run',
   (req, res, next) =>
-    runComponentTest(req.query.file, req.query.exportName, req.params.testId)
+    runComponentTest(path.join(SEARCH_PATH, req.query.file), req.query.exportName, req.params.testId)
       .then(
         ([results]) => res.send(results)
       )

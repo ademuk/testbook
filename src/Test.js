@@ -61,20 +61,15 @@ export default function Test({match: {url}, location: {search}, history}) {
   const handleAdd = step =>
     save([...steps, step]);
 
-  const [expanded, setExpanded] = React.useState(false);
-
-  const handleExpandChange = panel => (event, isExpanded) =>
-    setExpanded(isExpanded ? panel : false);
-
   return (
-    <>
-      <div className="block text-gray-700 text-lg font-semibold py-2 px-2">
+    <div className="p-6 bg-white">
+      <div className="block text-gray-700 text-lg font-semibold py-2">
         {file}
       </div>
-      <div className="block text-gray-700 text-lg font-semibold py-2 px-2">
+      <div className="block text-gray-700 text-lg font-semibold py-2">
         <Link to={`/tests/?file=${file}&exportName=${exportName}`}>{exportName}</Link>
       </div>
-      <div className="block text-gray-700 text-lg font-semibold py-2 px-2">
+      <div className="block text-gray-700 text-lg font-semibold py-2">
         Test {test.id}
       </div>
 
@@ -88,13 +83,13 @@ export default function Test({match: {url}, location: {search}, history}) {
         )}
       </div>
 
-      <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mr-2"
+      <button className="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded mr-2"
               onClick={() => history.push(`${url}/event${search}`)}
       >
         Add Event
       </button>
 
-      <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+      <button className="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded"
               onClick={() => history.push(`${url}/assertion${search}`)}
       >
         Add Assertion
@@ -115,6 +110,6 @@ export default function Test({match: {url}, location: {search}, history}) {
           location={location}
         />
       )} />
-    </>
+    </div>
   )
 }

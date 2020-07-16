@@ -1,6 +1,5 @@
 import React, {useEffect, useState} from 'react';
 import queryString from "query-string";
-import {Link} from "react-router-dom";
 import StatusLink from "./StatusLink";
 
 
@@ -22,11 +21,11 @@ export default function Tests({history, location: {search}}) {
   }, [file, exportName]);
 
   return (
-    <div>
-      <div className="block text-gray-700 text-lg font-semibold py-2 px-2">
+    <div className="p-6 bg-white">
+      <div className="block text-gray-700 text-lg font-semibold py-2">
         {file}
       </div>
-      <div className="block text-gray-700 text-lg font-semibold py-2 px-2">
+      <div className="block text-gray-700 text-lg font-semibold py-2">
         {exportName}
       </div>
 
@@ -46,7 +45,7 @@ export default function Tests({history, location: {search}}) {
         }
       </div>
 
-      <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+      <button className="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded"
               onClick={
                 () => handleSave(
                   file,
@@ -55,7 +54,7 @@ export default function Tests({history, location: {search}}) {
                 )
               }
       >
-        New Test
+        Add Test
       </button>
     </div>
   )
