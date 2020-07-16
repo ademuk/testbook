@@ -9,12 +9,14 @@ import Event from "./test/Event";
 import StatusLink from "./StatusLink";
 
 
-const Step = ({step, result: {result}}) => {
+const Step = ({step, result: {result}, selected, getLink}) => {
   const {type, ...rest} = step;
   return (
     <StatusLink
+      link={getLink()}
       status={result}
-      subText={result}
+      subTitle={result}
+      className={selected ? "bg-gray-400 hover:bg-gray-500" : ''}
     >
       {type} {JSON.stringify(rest, null, 2)}
     </StatusLink>
@@ -26,23 +28,30 @@ export default function Test({match: {url}, location: {search}, history}) {
   const [test, setTest] = useState({});
   const [steps, setSteps] = useState();
   const [stepResults, setStepResults] = useState([]);
+  const [regions, setRegions] = useState([]);
 
-  const {file, exportName} = queryString.parse(search);
+  const {file, exportName, step} = queryString.parse(search);
 
   useEffect(() => {
-    fetch(`/test/${testId}${search}`)
+    fetch(`/test/${testId}?file=${file}&exportName=${exportName}`)
       .then(res => res.json())
       .then(test => {
         setTest(test);
         setSteps(test.steps);
       })
-  }, [testId, file, exportName, search]);
+  }, [testId, file, exportName]);
 
   useEffect(() => {
     fetch(`/test/${testId}/run${search}`)
       .then(res => res.json())
       .then(setStepResults)
-  }, [testId, file, exportName, steps, search]);
+  }, [testId, search, steps]);
+
+  useEffect(() => {
+    fetch(`/test/${testId}/render/regions${search}`)
+      .then(res => res.json())
+      .then(setRegions)
+  }, [testId, search, steps]);
 
   const save = steps => {
     setSteps(
@@ -62,54 +71,63 @@ export default function Test({match: {url}, location: {search}, history}) {
     save([...steps, step]);
 
   return (
-    <div className="p-6 bg-white">
-      <div className="block text-gray-700 text-lg font-semibold py-2">
-        {file}
-      </div>
-      <div className="block text-gray-700 text-lg font-semibold py-2">
-        <Link to={`/tests/?file=${file}&exportName=${exportName}`}>{exportName}</Link>
-      </div>
-      <div className="block text-gray-700 text-lg font-semibold py-2">
-        Test {test.id}
-      </div>
+    <div className="bg-white flex">
+      <div className="md:w-1/2 p-6">
+        <div className="block text-gray-700 text-lg font-semibold py-2">
+          {file} /{' '}
+          <Link to={`/tests/?file=${file}&exportName=${exportName}`} className="underline">{exportName}</Link> /{' '}
+          Test {test.id}
+        </div>
 
-      <div className="my-3">
-        {!!steps && steps.map((step, i) =>
-          <Step
-            step={step}
-            result={stepResults[i] || {}}
-            key={i}
-          />
+        {!!regions.length && regions.map(r =>
+          <StatusLink
+            key={r.name}
+          >
+            {r.name + (r.unique ? '' : ' (not unique)')}
+          </StatusLink>
         )}
+
+        <button className="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded my-2 mr-2"
+                onClick={() => history.push(`${url}/event${search}`)}
+        >
+          Add Event
+        </button>
+
+        <button className="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded my-2"
+                onClick={() => history.push(`${url}/assertion${search}`)}
+        >
+          Add Assertion
+        </button>
+
+        <Route path={`${url}/assertion`} render={({location}) => (
+          <Assertion
+            onAdd={handleAdd}
+            onClose={() => history.push(`${url}${search}`)}
+            location={location}
+          />
+        )} />
+
+        <Route path={`${url}/event`} render={({location}) => (
+          <Event
+            onAdd={handleAdd}
+            onClose={() => history.push(`${url}${search}`)}
+            location={location}
+          />
+        )} />
       </div>
-
-      <button className="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded mr-2"
-              onClick={() => history.push(`${url}/event${search}`)}
-      >
-        Add Event
-      </button>
-
-      <button className="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded"
-              onClick={() => history.push(`${url}/assertion${search}`)}
-      >
-        Add Assertion
-      </button>
-
-      <Route path={`${url}/assertion`} render={({location}) => (
-        <Assertion
-          onAdd={handleAdd}
-          onClose={() => history.push(`${url}${search}`)}
-          location={location}
-        />
-      )} />
-
-      <Route path={`${url}/event`} render={({location}) => (
-        <Event
-          onAdd={handleAdd}
-          onClose={() => history.push(`${url}${search}`)}
-          location={location}
-        />
-      )} />
+      <div className="md:w-1/2 p-6">
+        <div className="my-3">
+          {!!steps && steps.map((s, i) =>
+            <Step
+              step={s}
+              result={stepResults[i] || {}}
+              selected={i <= (step || stepResults.length - 1)}
+              getLink={() => `/tests/${testId}?file=${file}&exportName=${exportName}&step=${i}`}
+              key={i}
+            />
+          )}
+        </div>
+      </div>
     </div>
   )
 }

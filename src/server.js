@@ -201,7 +201,12 @@ const getOrCreateComponent = (fileJson, exportName) => {
 const createTest = (file, exportName) => {
   const test = {
     id: uuidv1(),
-    steps: []
+    steps: [
+      {
+        type: "props",
+        props: {}
+      }
+    ]
   };
 
   return getOrCreateFileJson(file)
@@ -269,8 +274,8 @@ function copyProps(src, target) {
   });
 }
 
-const render = (file, exportName) => {
-  return compileModuleWithWebpack(file)
+const render = (file, exportName, props) =>
+  compileModuleWithWebpack(file)
     .then((compiledModulePath) => {
       const {window} = createDOM();
       global.document = window.document;
@@ -284,7 +289,6 @@ const render = (file, exportName) => {
       const container = document.createElement('div');
 
       document.body.appendChild(container);
-      const props = {};
       ReactDOM.render(
         React.createElement(
           Component,
@@ -296,7 +300,6 @@ const render = (file, exportName) => {
 
       return container;
     });
-};
 
 const getElementTreeXPath = element => {
   // https://stackoverflow.com/questions/3454526/how-to-calculate-the-xpath-position-of-an-element-using-javascript#answer-3454545
@@ -339,9 +342,13 @@ const findClickableElements = container =>
     container.querySelectorAll('a, button')
   );
 
-const renderComponentRegions = (file, exportName, testId) => {
-  return render(file, exportName)
-    .then((container) => {
+const renderComponentRegions = (file, exportName, testId, step) => {
+  return runComponentTest(file, exportName, testId, step)
+    .then(([results, container]) => {
+      if (!container) {
+        return [];
+      }
+
       const elements = findClickableElements(container).map(e => ({
         name: e.textContent.trim(),
         xpath: getElementTreeXPath(e)
@@ -354,19 +361,35 @@ const renderComponentRegions = (file, exportName, testId) => {
     });
 };
 
-const runEventStep = ({eventType, target}, container) => {
+const runRenderStep = (file, exportName, {props}, container) =>
+  render(file, exportName, props)
+    .then(
+      (c) => ['success', c]
+    )
+    .catch(
+      (e) => {
+        console.error('ERROR,', e)
+        return ['error', container]
+      }
+    );
+
+const runEventStep = (file, exportName, {eventType, target}, container) => {
   const node = findClickableElements(container)
     .find(e => e.textContent.trim() === target);
 
   if (!node) {
-    return 'error';
+    return Promise.resolve(
+      ['error', container]
+    );
   }
 
   Simulate[eventType](
     node
   );
 
-  return 'success';
+  return Promise.resolve(
+    ['success', container]
+  );
 };
 
 
@@ -386,36 +409,42 @@ const queryAllByText = (container, text) => {
     .filter(node => getNodeText(node) === text)
 };
 
-const runAssertionStep = (step, container) => {
+const runAssertionStep = (file, exportName, step, container) => {
   if (step.assertionType === 'textIsPresent') {
     const matches = queryAllByText(container, step.target);
-    return matches.length ? 'success' : 'error';
+    return Promise.resolve(
+      [matches.length ? 'success' : 'error', container]
+    );
   }
-  return 'error';
+
+  return Promise.resolve([
+    'error',
+    container
+  ]);
 };
 
 
 const STEP_RUNNERS = {
+  render: runRenderStep,
   event: runEventStep,
   assertion: runAssertionStep,
 };
 
-const runStep = (step, container) => ({
-  result: STEP_RUNNERS[step.type](step, container),
-});
+const runStep = (file, exportName, step, container) =>
+  STEP_RUNNERS[step.type](file, exportName, step, container);
 
-const runComponentTest = (file, exportName, testId) =>
-  Promise.all([
-    getComponentTest(file, exportName, testId),
-    render(file, exportName)
-  ])
-    .then(([{steps}, container]) =>
-      steps.reduce(([results, container], step) => [
-        [...results, runStep(step, container)],
-        container
-      ], [[], container])
+const runComponentTest = (file, exportName, testId, step) =>
+  getComponentTest(file, exportName, testId)
+    .then(({steps}) =>
+      steps.reduce((resultsAndContainer, s, idx) =>
+        resultsAndContainer.then(([results, container]) =>
+          (idx <= (step || steps.length - 1) && !results.find(r => r.result === 'error')) ? runStep(file, exportName, s, container)
+            .then(([result, newContainer]) => [
+               [...results, {result}],
+              newContainer
+            ]) : Promise.resolve([results, container])
+        ), Promise.resolve([[], null]))
     );
-
 
 const app = express();
 const PORT = 9010;
@@ -472,7 +501,7 @@ app.put(
 app.get(
   '/test/:testId/render/regions',
   (req, res) =>
-    renderComponentRegions(path.join(SEARCH_PATH, req.query.file), req.query.exportName, req.params.testId)
+    renderComponentRegions(path.join(SEARCH_PATH, req.query.file), req.query.exportName, req.params.testId, req.query.step)
       .then(
         test => res.send(test)
       )
@@ -481,7 +510,7 @@ app.get(
 app.get(
   '/test/:testId/run',
   (req, res, next) =>
-    runComponentTest(path.join(SEARCH_PATH, req.query.file), req.query.exportName, req.params.testId)
+    runComponentTest(path.join(SEARCH_PATH, req.query.file), req.query.exportName, req.params.testId, req.query.step)
       .then(
         ([results]) => res.send(results)
       )

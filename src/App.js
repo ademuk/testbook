@@ -16,7 +16,7 @@ const App = () =>
   <Router>
     <div className="md:flex flex-col md:flex-row md:min-h-screen w-full h-screen bg-gray-100">
       <Nav />
-      <div className="md:w-4/5">
+      <div className="md:w-5/6">
         <Switch>
           <Route path="/tests/:testId" component={Test} />
           <Route path="/tests" component={Tests} />

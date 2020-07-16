@@ -23,10 +23,7 @@ export default function Tests({history, location: {search}}) {
   return (
     <div className="p-6 bg-white">
       <div className="block text-gray-700 text-lg font-semibold py-2">
-        {file}
-      </div>
-      <div className="block text-gray-700 text-lg font-semibold py-2">
-        {exportName}
+        {file} / {exportName}
       </div>
 
       <div className="py-3">
