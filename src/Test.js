@@ -87,13 +87,13 @@ export default function Test({match: {url}, location: {search}, history}) {
           </Link>
         )}
 
-        <button className="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded my-2 mr-2"
+        <button className="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-full my-2 mr-2"
                 onClick={() => history.push(`${url}/event${search}`)}
         >
           Add Event
         </button>
 
-        <button className="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded my-2"
+        <button className="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-full my-2"
                 onClick={() => history.push(`${url}/assertion${search}`)}
         >
           Add Assertion
@@ -116,7 +116,7 @@ export default function Test({match: {url}, location: {search}, history}) {
         )} />
       </div>
       <div className="md:w-1/2 p-6">
-        <div className="my-3">
+        <div className="my-2">
           {!!steps && steps.map((s, i) =>
             <Step
               step={s}
