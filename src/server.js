@@ -203,7 +203,7 @@ const createTest = (file, exportName) => {
     id: uuidv1(),
     steps: [
       {
-        type: "props",
+        type: "render",
         props: {}
       }
     ]

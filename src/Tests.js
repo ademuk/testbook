@@ -12,6 +12,7 @@ const handleSave = (file, exportName, cb) =>
 
 export default function Tests({history, location: {search}}) {
   const [tests, setTests] = useState([]);
+  const [successfulTestIds, setSuccessfulTestIds] = useState([]);
   const {file, exportName} = queryString.parse(search);
 
   useEffect(() => {
@@ -20,6 +21,28 @@ export default function Tests({history, location: {search}}) {
       .then(setTests)
   }, [file, exportName]);
 
+  useEffect(() => {
+    Promise.all(
+      tests.map(
+        t => fetch(`/test/${t.id}/run${search}`)
+          .then(r => [r, t.id])
+      )
+    )
+    .then(res => Promise.all(
+      res.map(([r, tid]) =>
+        r.json()
+          .then(r => [r, tid])
+      )
+    ))
+    .then(
+      results =>
+        results.filter(([rs, tid]) =>
+          rs.every(r => r.result === 'success')
+        ).map(([rs, tid]) => tid)
+    )
+    .then(setSuccessfulTestIds)
+  }, [tests, search]);
+
   return (
     <div className="p-6 bg-white">
       <div className="block text-gray-700 text-lg font-semibold py-2">
@@ -27,9 +50,11 @@ export default function Tests({history, location: {search}}) {
       </div>
 
       <div className="py-3">
+        {successfulTestIds}
         {!!tests && tests.map(t =>
           <StatusLink
             link={`/tests/${t.id}?file=${file}&exportName=${exportName}`}
+            status={successfulTestIds.includes(t.id) ? 'success' : 'error'}
             key={t.id}
           >
             {t.id}
