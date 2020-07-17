@@ -18,14 +18,12 @@ const Nav = () =>
           </svg>
         </button>
       </div>
-      {/*<div className="w-full block flex-grow lg:flex lg:items-center lg:w-auto">*/}
-      {/*  <div className="text-sm lg:flex-grow">*/}
-      {/*    <Link to={'/'} className="block mt-4 lg:inline-block lg:mt-0 text-white hover:underline mr-4">Tests</Link>*/}
-      {/*  </div>*/}
-      {/*  <div>*/}
-      {/*    <a href="#"*/}
-      {/*       className="inline-block text-sm px-4 py-2 leading-none border rounded text-white border-white hover:border-transparent hover:text-gray-600 hover:bg-white mt-4 lg:mt-0">Download</a>*/}
-      {/*  </div>*/}
+      {/*<div>*/}
+      {/*  <Link to={'/'} className="py-4 inline-block text-white hover:underline">Tests</Link>*/}
+      {/*</div>*/}
+      {/*<div>*/}
+      {/*  <a href="#"*/}
+      {/*     className="inline-block text-sm px-4 py-2 leading-none rounded text-white border border-white hover:border-transparent hover:text-gray-800 hover:bg-white">Download</a>*/}
       {/*</div>*/}
     </nav>;
 
