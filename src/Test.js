@@ -1,12 +1,12 @@
 import React, {useEffect, useState} from 'react';
 import {
   useParams,
-  Route, Link,
+  Route, Link as RouterLink,
 } from "react-router-dom";
 import queryString from "query-string";
 import Assertion from "./test/Assertion";
 import Event from "./test/Event";
-import StatusLink from "./StatusLink";
+import StatusLink, {Link} from "./StatusLink";
 
 
 const Step = ({step, result: {result}, selected, getLink}) => {
@@ -75,16 +75,16 @@ export default function Test({match: {url}, location: {search}, history}) {
       <div className="md:w-1/2 p-6">
         <div className="block text-gray-700 text-lg font-semibold py-2">
           {file} /{' '}
-          <Link to={`/tests/?file=${file}&exportName=${exportName}`} className="underline">{exportName}</Link> /{' '}
+          <RouterLink to={`/tests/?file=${file}&exportName=${exportName}`} className="underline">{exportName}</RouterLink> /{' '}
           Test {test.id}
         </div>
 
         {!!regions.length && regions.map(r =>
-          <StatusLink
+          <Link
             key={r.name}
           >
             {r.name + (r.unique ? '' : ' (not unique)')}
-          </StatusLink>
+          </Link>
         )}
 
         <button className="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded my-2 mr-2"
