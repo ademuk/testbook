@@ -12,7 +12,7 @@ const handleSave = (file, exportName, cb) =>
 
 export default function Tests({history, location: {search}}) {
   const [tests, setTests] = useState([]);
-  const [successfulTestIds, setSuccessfulTestIds] = useState([]);
+  const [testStatuses, setTestStatuses] = useState([]);
   const {file, exportName} = queryString.parse(search);
 
   useEffect(() => {
@@ -22,25 +22,9 @@ export default function Tests({history, location: {search}}) {
   }, [file, exportName]);
 
   useEffect(() => {
-    Promise.all(
-      tests.map(
-        t => fetch(`/test/${t.id}/run${search}`)
-          .then(r => [r, t.id])
-      )
-    )
-    .then(res => Promise.all(
-      res.map(([r, tid]) =>
-        r.json()
-          .then(r => [r, tid])
-      )
-    ))
-    .then(
-      results =>
-        results.filter(([rs, tid]) =>
-          rs.every(r => r.result === 'success')
-        ).map(([rs, tid]) => tid)
-    )
-    .then(setSuccessfulTestIds)
+    fetch(`/test/status${search}`)
+      .then(res => res.json())
+      .then(setTestStatuses)
   }, [tests, search]);
 
   return (
@@ -50,11 +34,10 @@ export default function Tests({history, location: {search}}) {
       </div>
 
       <div className="py-3">
-        {successfulTestIds}
         {!!tests && tests.map(t =>
           <StatusLink
             link={`/tests/${t.id}?file=${file}&exportName=${exportName}`}
-            status={successfulTestIds.includes(t.id) ? 'success' : 'error'}
+            status={testStatuses[t.id]}
             key={t.id}
           >
             {t.id}

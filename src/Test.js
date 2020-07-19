@@ -23,6 +23,12 @@ const Step = ({step, result: {result}, selected, getLink}) => {
   )
 };
 
+const groupBy = (items, key) =>
+  items.reduce((prev, curr) => ({
+    ...prev,
+    [curr[key]]: [...(prev[curr[key]] || []), curr]
+  }), {});
+
 export default function Test({match: {url}, location: {search}, history}) {
   const {testId} = useParams();
   const [test, setTest] = useState({});
@@ -70,6 +76,8 @@ export default function Test({match: {url}, location: {search}, history}) {
   const handleAdd = step =>
     save([...steps, step]);
 
+  const regionsByType = groupBy(regions, 'type');
+
   return (
     <div className="bg-white flex">
       <div className="md:w-1/2 p-6">
@@ -78,14 +86,20 @@ export default function Test({match: {url}, location: {search}, history}) {
           <RouterLink to={`/tests/?file=${file}&exportName=${exportName}`} className="underline">{exportName}</RouterLink> /{' '}
           Test {test.id}
         </div>
-
-        {!!regions.length && regions.map(r =>
-          <Link
-            key={r.name}
-          >
-            {r.name + (r.unique ? '' : ' (not unique)')}
-          </Link>
-        )}
+        {!!regions.length && Object.entries(regionsByType)
+          .map(([type, regions]) =>
+            <>
+              <h3>{type}</h3>
+              {regions.map(r =>
+                <Link
+                  key={r.text}
+                >
+                  {r.text + (r.unique ? '' : ' (not unique)')}
+                </Link>
+              )}
+            </>
+          )
+        }
 
         <button className="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-full my-2 mr-2"
                 onClick={() => history.push(`${url}/event${search}`)}

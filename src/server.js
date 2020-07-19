@@ -152,6 +152,22 @@ const getComponentTests = (file, exportName) =>
       () => []
     );
 
+const getComponentTestStatuses = (file, exportName) =>
+  getComponentTests(file, exportName)
+    .then(tests =>
+      Promise.all(
+        tests.map(t =>
+          runComponentTest(file, exportName, t.id, t.steps.length - 1)
+            .then(([results]) => [t.id, results])
+        )
+      )
+    ).then(listOfIdsAndResults =>
+      listOfIdsAndResults.reduce((prev, [testId, results]) => ({
+        ...prev,
+        [testId]: results.every(r => r.result === 'success') ? 'success' : 'error'
+      }), {})
+    );
+
 const getComponentTest = (file, exportName, testId) =>
   getComponentTests(file, exportName)
     .then(t => t.find(t => t.id === testId));
@@ -196,7 +212,6 @@ const getOrCreateComponent = (fileJson, exportName) => {
     ])
   };
 };
-
 
 const createTest = (file, exportName) => {
   const test = {
@@ -337,29 +352,40 @@ const getElementTreeXPath = element => {
   return paths.length ? "/" + paths.join("/") : null;
 };
 
-const findClickableElements = container =>
-  Array.from(
-    container.querySelectorAll('a, button')
-  );
+function findTextNodes(elem, filter) {
+  let textNodes = [];
+  if (elem) {
+    elem.childNodes.forEach((node) => {
+      if (node.nodeType === 3) {
+        if (!filter || filter(node, elem)) {
+          textNodes.push([node.parentNode, node.textContent.trim()]);
+        }
+      } else if (node.nodeType === 1 || node.nodeType === 9 || node.nodeType === 11) {
+        textNodes = textNodes.concat(findTextNodes(node, filter));
+      }
+    });
+  }
+  return textNodes;
+}
 
-const renderComponentRegions = (file, exportName, testId, step) => {
-  return runComponentTest(file, exportName, testId, step)
+const renderComponentRegions = (file, exportName, testId, step) =>
+  runComponentTest(file, exportName, testId, step)
     .then(([results, container]) => {
       if (!container) {
         return [];
       }
 
-      const elements = findClickableElements(container).map(e => ({
-        name: e.textContent.trim(),
-        xpath: getElementTreeXPath(e)
-      }));
-
+      const elements = findTextNodes(container)
+        .map(([e, text]) => ({
+          text,
+          type: ['BUTTON', 'A'].includes(e.nodeName) ? 'button' : 'text',
+          xpath: getElementTreeXPath(e)
+        }));
       return elements.map(e => ({
         ...e,
-        unique: !elements.find(f => f.name === e.name && f.xpath !== e.xpath)
+        unique: !elements.find(f => f.text === e.text && f.xpath !== e.xpath)
       }));
     });
-};
 
 const runRenderStep = (file, exportName, {props}, container) =>
   render(file, exportName, props)
@@ -367,15 +393,12 @@ const runRenderStep = (file, exportName, {props}, container) =>
       (c) => ['success', c]
     )
     .catch(
-      (e) => {
-        console.error('ERROR,', e)
-        return ['error', container]
-      }
+      () => ['error', container]
     );
 
 const runEventStep = (file, exportName, {eventType, target}, container) => {
-  const node = findClickableElements(container)
-    .find(e => e.textContent.trim() === target);
+  const [node] = findTextNodes(container)
+    .find(([e, text]) => text === target);
 
   if (!node) {
     return Promise.resolve(
@@ -468,6 +491,15 @@ app.get(
     getComponentTests(path.join(SEARCH_PATH, req.query.file), req.query.exportName)
       .then(
         test => res.send(test)
+      )
+);
+
+app.get(
+  '/test/status',
+  (req, res) =>
+    getComponentTestStatuses(path.join(SEARCH_PATH, req.query.file), req.query.exportName)
+      .then(
+        statuses => res.send(statuses)
       )
 );
 
