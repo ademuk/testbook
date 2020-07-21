@@ -8,7 +8,9 @@ const CreateStepModal = ({region, onClose, onSelect}) => (
 
       <div className="modal-content py-4 text-left px-6">
         <div className="flex justify-between items-center pb-3">
-          <p className="text-2xl font-bold">{region.text} {region.type}</p>
+          <p className="text-2xl">
+            <span className="font-bold">{region.text}</span> <span>{region.type}</span>
+          </p>
           <div className="modal-close cursor-pointer z-50" onClick={onClose}>
             <svg className="fill-current text-black" xmlns="http://www.w3.org/2000/svg" width="18" height="18"
                  viewBox="0 0 18 18">
@@ -18,7 +20,7 @@ const CreateStepModal = ({region, onClose, onSelect}) => (
           </div>
         </div>
 
-        <button className="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-full my-2 mr-2"
+        <button className="bg-blue-700 hover:bg-blue-800 text-white font-medium py-2 px-4 rounded-full my-2 mr-2"
                 onClick={() => onSelect({
                   type: 'event',
                   eventType: 'click',
@@ -28,14 +30,14 @@ const CreateStepModal = ({region, onClose, onSelect}) => (
           Click
         </button>
 
-        <button className="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-full my-2 mr-2"
+        <button className="bg-green-700 hover:bg-green-800 text-white font-medium py-2 px-4 rounded-full my-2 mr-2"
                 onClick={() => onSelect({
                   type: 'assertion',
                   assertionType: 'textIsPresent',
                   target: region.text
                 })}
         >
-          Assert present
+          Assert visible
         </button>
 
       </div>

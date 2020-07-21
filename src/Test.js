@@ -8,10 +8,18 @@ import StatusLink from "./StatusLink";
 import CreateStepModal from "./test/CreateStepModal";
 
 
+const STEP_RENDERS = {
+  render: ({target}) => `Render component`,
+  event: ({target}) => `Click on "${target}"`,
+  assertion: ({target}) => `Assert "${target}" is visible`
+};
+
+const defaultStepRenderer = (step) => Object.entries(step).map(([key, val]) =>
+  `${key}: ${typeof val == 'object' ? JSON.stringify(val) : val}`
+).join(', ');
+
 const renderStepLabel = (step) =>
-  Object.entries(step).map(([key, val]) =>
-    `${key}: ${typeof val == 'object' ? JSON.stringify(val) : val}`
-  ).join(', ');
+  STEP_RENDERS[step.type] ? STEP_RENDERS[step.type](step) : defaultStepRenderer(step);
 
 const Step = ({step, result: {result}, selected, active, link, onDelete}) => {
   const {type, ...rest} = step;
@@ -23,7 +31,7 @@ const Step = ({step, result: {result}, selected, active, link, onDelete}) => {
       selected={selected}
       active={active}
     >
-      {renderStepLabel(rest)}
+      {renderStepLabel(step)}
       {(active && type !== 'render') && <button
         onClick={onDelete}
         className="block text-xs font-semibold text-red-600 hover:bg-red-600 hover:text-white py-1 px-2 border border-red-600 rounded-full my-2 mr-2">
@@ -60,7 +68,7 @@ export default function Test({match: {url}, location: {search}, history}) {
     if (steps && step > steps.length - 1) {
       history.replace(`${url}?file=${file}&exportName=${exportName}&step=${steps.length - 1}`);
     }
-  }, [history, url, search, step, steps]);
+  }, [history, url, search, file, exportName, step, steps]);
 
   useEffect(() => {
     fetch(`/test/${testId}?file=${file}&exportName=${exportName}`)
