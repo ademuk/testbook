@@ -1,22 +1,22 @@
-import React, {useEffect, useState} from 'react';
+import React, {Fragment, useEffect, useState} from 'react';
 import {
   useParams,
-  Route, Link as RouterLink,
+  Link as RouterLink,
 } from "react-router-dom";
 import queryString from "query-string";
-import Assertion from "./test/Assertion";
-import Event from "./test/Event";
-import StatusLink, {Link} from "./StatusLink";
+import StatusLink from "./StatusLink";
+import CreateStepModal from "./test/CreateStepModal";
 
 
-const Step = ({step, result: {result}, selected, getLink}) => {
+const Step = ({step, result: {result}, selected, active, getLink}) => {
   const {type, ...rest} = step;
   return (
     <StatusLink
       link={getLink()}
       status={result}
       subTitle={result}
-      className={selected ? "bg-gray-400 hover:bg-gray-500" : ''}
+      selected={selected}
+      active={active}
     >
       {type} {JSON.stringify(rest, null, 2)}
     </StatusLink>
@@ -35,8 +35,16 @@ export default function Test({match: {url}, location: {search}, history}) {
   const [steps, setSteps] = useState();
   const [stepResults, setStepResults] = useState([]);
   const [regions, setRegions] = useState([]);
+  const [selectedRegion, setSelectedRegion] = useState(null);
 
-  const {file, exportName, step} = queryString.parse(search);
+  const {file, exportName, ...rest} = queryString.parse(search);
+  const step = rest.step && parseInt(rest.step, 10);
+
+  useEffect(() => {
+    if (steps && !step) {
+      history.replace(`${url}/assertion${search}&step=${steps.length - 1}`);
+    }
+  }, [step, steps]);
 
   useEffect(() => {
     fetch(`/test/${testId}?file=${file}&exportName=${exportName}`)
@@ -48,7 +56,7 @@ export default function Test({match: {url}, location: {search}, history}) {
   }, [testId, file, exportName]);
 
   useEffect(() => {
-    fetch(`/test/${testId}/run${search}`)
+    fetch(`/test/${testId}/run?file=${file}&exportName=${exportName}`)
       .then(res => res.json())
       .then(setStepResults)
   }, [testId, search, steps]);
@@ -64,7 +72,7 @@ export default function Test({match: {url}, location: {search}, history}) {
       steps
     );
 
-    fetch(`/test/${test.id}/steps${search}`, {
+    return fetch(`/test/${test.id}/steps${search}`, {
       method: 'put',
       body: JSON.stringify(steps),
       headers: {
@@ -73,8 +81,15 @@ export default function Test({match: {url}, location: {search}, history}) {
     });
   };
 
-  const handleAdd = step =>
-    save([...steps, step]);
+  const handleAddStep = stepToAdd => {
+    const modifiedSteps = [...steps];
+    modifiedSteps.splice(step + 1, 0, stepToAdd);
+    save(modifiedSteps)
+      .then(() => {
+        setSelectedRegion(null);
+        history.replace(`${url}?file=${file}&exportName=${exportName}&step=${step + 1}`);
+      });
+  };
 
   const regionsByType = groupBy(regions, 'type');
 
@@ -88,46 +103,27 @@ export default function Test({match: {url}, location: {search}, history}) {
         </div>
         {!!regions.length && Object.entries(regionsByType)
           .map(([type, regions]) =>
-            <>
+            <Fragment key={`${type}`}>
               <h3>{type}</h3>
               {regions.map(r =>
-                <Link
-                  key={r.text}
+                <button
+                  className={
+                    `block font-medium text-gray-700 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-2 my-2 focus:rounded-lg w-full text-left`
+                  }
+                  key={r.xpath}
+                  onClick={() => setSelectedRegion(r)}
                 >
                   {r.text + (r.unique ? '' : ' (not unique)')}
-                </Link>
+                </button>
               )}
-            </>
+            </Fragment>
           )
         }
 
-        <button className="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-full my-2 mr-2"
-                onClick={() => history.push(`${url}/event${search}`)}
-        >
-          Add Event
-        </button>
-
-        <button className="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-full my-2"
-                onClick={() => history.push(`${url}/assertion${search}`)}
-        >
-          Add Assertion
-        </button>
-
-        <Route path={`${url}/assertion`} render={({location}) => (
-          <Assertion
-            onAdd={handleAdd}
-            onClose={() => history.push(`${url}${search}`)}
-            location={location}
-          />
-        )} />
-
-        <Route path={`${url}/event`} render={({location}) => (
-          <Event
-            onAdd={handleAdd}
-            onClose={() => history.push(`${url}${search}`)}
-            location={location}
-          />
-        )} />
+        {
+          selectedRegion &&
+          <CreateStepModal region={selectedRegion} onSelect={handleAddStep} onClose={() => setSelectedRegion(null)} />
+        }
       </div>
       <div className="md:w-1/2 p-6">
         <div className="my-2">
@@ -136,6 +132,7 @@ export default function Test({match: {url}, location: {search}, history}) {
               step={s}
               result={stepResults[i] || {}}
               selected={i <= (step || stepResults.length - 1)}
+              active={i === step}
               getLink={() => `/tests/${testId}?file=${file}&exportName=${exportName}&step=${i}`}
               key={i}
             />
