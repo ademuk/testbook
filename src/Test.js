@@ -8,11 +8,11 @@ import StatusLink from "./StatusLink";
 import CreateStepModal from "./test/CreateStepModal";
 
 
-const Step = ({step, result: {result}, selected, active, getLink}) => {
+const Step = ({step, result: {result}, selected, active, link}) => {
   const {type, ...rest} = step;
   return (
     <StatusLink
-      link={getLink()}
+      link={link}
       status={result}
       subTitle={result}
       selected={selected}
@@ -29,6 +29,8 @@ const groupBy = (items, key) =>
     [curr[key]]: [...(prev[curr[key]] || []), curr]
   }), {});
 
+const capitalise = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+
 export default function Test({match: {url}, location: {search}, history}) {
   const {testId} = useParams();
   const [test, setTest] = useState({});
@@ -41,10 +43,10 @@ export default function Test({match: {url}, location: {search}, history}) {
   const step = rest.step && parseInt(rest.step, 10);
 
   useEffect(() => {
-    if (steps && !step) {
-      history.replace(`${url}/assertion${search}&step=${steps.length - 1}`);
+    if (steps && step === undefined) {
+      history.replace(`${url}${search}&step=${steps.length - 1}`);
     }
-  }, [step, steps]);
+  }, [history, url, search, step, steps]);
 
   useEffect(() => {
     fetch(`/test/${testId}?file=${file}&exportName=${exportName}`)
@@ -59,7 +61,7 @@ export default function Test({match: {url}, location: {search}, history}) {
     fetch(`/test/${testId}/run?file=${file}&exportName=${exportName}`)
       .then(res => res.json())
       .then(setStepResults)
-  }, [testId, search, steps]);
+  }, [testId, file, exportName, steps]);
 
   useEffect(() => {
     fetch(`/test/${testId}/render/regions${search}`)
@@ -104,7 +106,7 @@ export default function Test({match: {url}, location: {search}, history}) {
         {!!regions.length && Object.entries(regionsByType)
           .map(([type, regions]) =>
             <Fragment key={`${type}`}>
-              <h3>{type}</h3>
+              <h3>{capitalise(type)}</h3>
               {regions.map(r =>
                 <button
                   className={
@@ -131,9 +133,9 @@ export default function Test({match: {url}, location: {search}, history}) {
             <Step
               step={s}
               result={stepResults[i] || {}}
-              selected={i <= (step || stepResults.length - 1)}
+              selected={i <= (step === undefined ? stepResults.length - 1 : step)}
               active={i === step}
-              getLink={() => `/tests/${testId}?file=${file}&exportName=${exportName}&step=${i}`}
+              link={`/tests/${testId}?file=${file}&exportName=${exportName}&step=${i}`}
               key={i}
             />
           )}

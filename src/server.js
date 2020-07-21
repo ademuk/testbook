@@ -461,7 +461,7 @@ const runComponentTest = (file, exportName, testId, step) =>
     .then(({steps}) =>
       steps.reduce((resultsAndContainer, s, idx) =>
         resultsAndContainer.then(([results, container]) =>
-          (idx <= (step || steps.length - 1) && !results.find(r => r.result === 'error')) ? runStep(file, exportName, s, container)
+          (idx <= (step === undefined ? steps.length - 1 : step) && !results.find(r => r.result === 'error')) ? runStep(file, exportName, s, container)
             .then(([result, newContainer]) => [
                [...results, {result}],
               newContainer
