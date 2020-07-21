@@ -8,17 +8,27 @@ import StatusLink from "./StatusLink";
 import CreateStepModal from "./test/CreateStepModal";
 
 
-const Step = ({step, result: {result}, selected, active, link}) => {
+const renderStepLabel = (step) =>
+  Object.entries(step).map(([key, val]) =>
+    `${key}: ${typeof val == 'object' ? JSON.stringify(val) : val}`
+  ).join(', ');
+
+const Step = ({step, result: {result}, selected, active, link, onDelete}) => {
   const {type, ...rest} = step;
   return (
     <StatusLink
       link={link}
       status={result}
-      subTitle={result}
+      subTitle={type}
       selected={selected}
       active={active}
     >
-      {type} {JSON.stringify(rest, null, 2)}
+      {renderStepLabel(rest)}
+      {(active && type !== 'render') && <button
+        onClick={onDelete}
+        className="block text-xs font-semibold text-red-600 hover:bg-red-600 hover:text-white py-1 px-2 border border-red-600 rounded-full my-2 mr-2">
+        Remove
+      </button>}
     </StatusLink>
   )
 };
@@ -45,6 +55,10 @@ export default function Test({match: {url}, location: {search}, history}) {
   useEffect(() => {
     if (steps && step === undefined) {
       history.replace(`${url}${search}&step=${steps.length - 1}`);
+    }
+
+    if (steps && step > steps.length - 1) {
+      history.replace(`${url}?file=${file}&exportName=${exportName}&step=${steps.length - 1}`);
     }
   }, [history, url, search, step, steps]);
 
@@ -93,6 +107,14 @@ export default function Test({match: {url}, location: {search}, history}) {
       });
   };
 
+  const handleDeleteStep = (idx) => {
+    save(steps.filter((s, i) => i !== idx))
+      .then(() => {
+        setSelectedRegion(null);
+        history.replace(`${url}?file=${file}&exportName=${exportName}&step=${step}`);
+      });
+  };
+
   const regionsByType = groupBy(regions, 'type');
 
   return (
@@ -136,6 +158,7 @@ export default function Test({match: {url}, location: {search}, history}) {
               selected={i <= (step === undefined ? stepResults.length - 1 : step)}
               active={i === step}
               link={`/tests/${testId}?file=${file}&exportName=${exportName}&step=${i}`}
+              onDelete={() => handleDeleteStep(i)}
               key={i}
             />
           )}

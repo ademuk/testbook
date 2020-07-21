@@ -25,7 +25,7 @@ const StatusLink = ({link, children, selected = false, active = false, subTitle 
               }>
     <span className={`${stepClassNames[status] || 'bg-gray-400'} h-2 w-2 m-2 rounded-full`} />
     <div className="flex-grow font-medium px-2">{children}</div>
-    {subTitle && <div className="text-sm font-normal text-gray-500 tracking-wide">{subTitle}</div>}
+    {subTitle && <div className="text-xs font-normal text-gray-500 tracking-wide">{subTitle}</div>}
   </RouterLink>;
 
 export default StatusLink;

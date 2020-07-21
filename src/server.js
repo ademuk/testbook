@@ -397,7 +397,7 @@ const runRenderStep = (file, exportName, {props}, container) =>
     );
 
 const runEventStep = (file, exportName, {eventType, target}, container) => {
-  const [node] = findTextNodes(container)
+  const node = findTextNodes(container)
     .find(([e, text]) => text === target);
 
   if (!node) {
@@ -406,8 +406,10 @@ const runEventStep = (file, exportName, {eventType, target}, container) => {
     );
   }
 
+  const [targetNode] = node;
+
   Simulate[eventType](
-    node
+    targetNode
   );
 
   return Promise.resolve(
