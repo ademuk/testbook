@@ -1,6 +1,7 @@
 {
   "name": "@ademuk/testbook",
   "version": "0.1.0",
+  "description": "Testing UI",
   "dependencies": {
     "@babel/core": "^7.9.6",
     "@babel/node": "^7.8.7",
@@ -48,16 +49,18 @@
     ]
   },
   "proxy": "http://localhost:9010",
-  "description": "This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).",
   "main": "index.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ademuk/testbook.git"
   },
   "keywords": [
-    "testing"
+    "react",
+    "testing",
+    "component-testing",
+    "testing-tool"
   ],
-  "author": "Adem Gaygusuz",
+  "author": "Adem Gaygusuz <adem@ardweb.co.uk> (https://adem .io)",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/ademuk/testbook/issues"
