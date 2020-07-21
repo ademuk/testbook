@@ -7,7 +7,7 @@ It currently supports apps created by CRA.
 ## Installation
 
 ```
-yarn add --dev @testing-library/react
+yarn add --dev @ademuk/testbook
 ```
 
 ## Running
