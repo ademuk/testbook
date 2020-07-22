@@ -352,16 +352,14 @@ const getElementTreeXPath = element => {
   return paths.length ? "/" + paths.join("/") : null;
 };
 
-function findTextNodes(elem, filter) {
+const findTextNodes = (elem) => {
   let textNodes = [];
   if (elem) {
     elem.childNodes.forEach((node) => {
       if (node.nodeType === 3) {
-        if (!filter || filter(node, elem)) {
-          textNodes.push([node.parentNode, node.textContent.trim()]);
-        }
+        textNodes.push([node.parentNode, node.textContent.trim()]);
       } else if (node.nodeType === 1 || node.nodeType === 9 || node.nodeType === 11) {
-        textNodes = textNodes.concat(findTextNodes(node, filter));
+        textNodes = textNodes.concat(findTextNodes(node));
       }
     });
   }
@@ -436,7 +434,9 @@ const queryAllByText = (container, text) => {
 
 const runAssertionStep = (file, exportName, step, container) => {
   if (step.assertionType === 'textIsPresent') {
-    const matches = queryAllByText(container, step.target);
+    const matches = findTextNodes(container)
+      .filter(([element, text]) => text === step.target);
+
     return Promise.resolve(
       [matches.length ? 'success' : 'error', container]
     );
