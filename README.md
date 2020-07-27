@@ -4,15 +4,10 @@ Testbook is a tool for creating React component tests.
 
 It currently supports apps created by CRA.
 
-## Installation
-
-```
-yarn add --dev @ademuk/testbook
-```
-
 ## Running
 
+Run the following from you CRA project
 ```
-yarn testbook
+npx testbook
 ```
 
