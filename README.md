@@ -6,7 +6,7 @@ It currently supports apps created by CRA.
 
 ## Running
 
-Run the following from you CRA project
+Run the following from your CRA project
 ```
 npx testbook
 ```
