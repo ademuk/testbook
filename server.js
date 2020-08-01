@@ -67,7 +67,7 @@ const compileModuleWithWebpack = (modulePath) => {
 
       if (stats.hasErrors()) {
         return reject(stats.toJson().errors);
-      };
+      }
 
       return resolve(path.resolve(path.join(stats.toJson().outputPath, modulePath)));
     });
@@ -364,7 +364,7 @@ const findTextNodes = (elem) => {
     });
   }
   return textNodes;
-}
+};
 
 const renderComponentRegions = (file, exportName, testId, step) =>
   runComponentTest(file, exportName, testId, step)
@@ -551,7 +551,19 @@ app.get(
       .catch(next)
 );
 
-app.listen(
-  PORT,
-  () => console.log(`Started Testbook server listening on port ${PORT}.`)
+app.use(
+  '/',
+  express.static(path.join(__dirname + '/build'))
 );
+
+app.get('/*', function (req, res) {
+  res.sendFile(path.join(__dirname, 'build', 'index.html'));
+});
+
+module.exports.startServer = () =>
+  new Promise((resolve) =>
+    app.listen(
+      PORT,
+      () => resolve(PORT)
+    )
+  );

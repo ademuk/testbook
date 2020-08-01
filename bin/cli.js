@@ -1,16 +1,13 @@
 #!/usr/bin/env node
 
-const concurrently = require('concurrently');
-
-const testbookRootPath = `${__dirname}/..`;
+const openBrowser = require('react-dev-utils/openBrowser');
+const {startServer} = require("../server");
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'development';
 
-concurrently([
-  `${testbookRootPath}/node_modules/.bin/babel-node ${testbookRootPath}/src/server.js`,
-  `npm start --prefix ${__dirname}/../`,
-], {
-  prefix: 'name',
-  killOthers: ['failure', 'success'],
-  restartTries: 3,
-});
+startServer()
+  .then((port) => {
+    console.log(`Started Testbook http://localhost:${port}.`);
+
+    openBrowser(`http://localhost:${port}`);
+  });
