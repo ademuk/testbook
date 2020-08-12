@@ -127,13 +127,17 @@ const findComponentsInModule = (module, modulePath) =>
     .map(
       exportName => ({
         exportName,
-        returnValue: React.createElement(module[exportName])
+        exportedModule: module[exportName]
       })
     )
-    .filter(({returnValue}) => {
+    .filter(({exportedModule}) => {
+      if (exportedModule.propTypes) {
+        return true;
+      }
+
       const container = document.createElement('div');
 
-      ReactDOM.render(returnValue, container);
+      ReactDOM.render(React.createElement(exportedModule), container);
 
       return !!container;
     })
@@ -471,6 +475,66 @@ const runComponentTest = (file, exportName, testId, step) =>
         ), Promise.resolve([[], null]))
     );
 
+const valueMap = {
+  'an array': 'array',
+  'a ReactNode': 'ReactNode',
+  'a single ReactElement': 'ReactElement',
+  'a single ReactElement type': 'ReactElement type',
+};
+
+const parsePropTypeMessage = (message, defaultType) => {
+  let result;
+  if (!message) {
+    return defaultType;
+  }
+
+  const primitivePattern = /expected `?([a-zA-Z ]+)/g;
+  if (message.message.match(primitivePattern)) {
+    const r = primitivePattern.exec(message.message);
+    result = r ? r[1] : null;
+  }
+
+  const oneOfPattern = /expected one of (\[.*\])/g;
+  if (message.message.match(oneOfPattern)) {
+    const r = oneOfPattern.exec(message.message);
+    result = r ? `oneOf:${r[1]}` : null;
+  }
+
+  const instanceOfPattern = /expected instance of `(.*)`/g;
+  if (message.message.match(instanceOfPattern)) {
+    const r = instanceOfPattern.exec(message.message);
+    result = r ? `instanceOf:${r[1]}` : null;
+  }
+
+  return valueMap[result] || result;
+};
+
+const inferPropTypes = (propTypes) =>
+  Object.keys(propTypes)
+    .reduce(
+      (prev , curr) =>
+        ({
+          ...prev,
+          [curr]: [
+            parsePropTypeMessage(
+              propTypes[curr]({[curr]: {}}, curr, null, null, null, 'SECRET_DO_NOT_PASS_THIS_OR_YOU_WILL_BE_FIRED'),
+              'object'
+            ),
+            propTypes[curr]({[curr]: undefined}, curr, null, null, null, 'SECRET_DO_NOT_PASS_THIS_OR_YOU_WILL_BE_FIRED') !== null
+          ]
+        }),
+      {});
+
+module.exports.inferPropTypes = inferPropTypes;
+
+const getComponentPropTypes = (modulePath, exportName) => {
+  return compileModuleWithWebpack(modulePath)
+    .then((compiledModulePath) => {
+      const component = require(compiledModulePath)[exportName];
+      return component.propTypes ? inferPropTypes(component.propTypes) : {};
+    });
+};
+
 const app = express();
 const PORT = 9010;
 
@@ -547,6 +611,16 @@ app.get(
     runComponentTest(path.join(SEARCH_PATH, req.query.file), req.query.exportName, req.params.testId, req.query.step)
       .then(
         ([results]) => res.send(results)
+      )
+      .catch(next)
+);
+
+app.get(
+  '/component/propTypes',
+  (req, res, next) =>
+    getComponentPropTypes(path.join(SEARCH_PATH, req.query.file), req.query.exportName)
+      .then(
+        (propTypes) => res.send(propTypes)
       )
       .catch(next)
 );

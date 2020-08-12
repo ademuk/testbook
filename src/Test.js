@@ -4,41 +4,10 @@ import {
   Link as RouterLink,
 } from "react-router-dom";
 import queryString from "query-string";
-import StatusLink from "./StatusLink";
 import CreateStepModal from "./test/CreateStepModal";
 
-
-const STEP_RENDERS = {
-  render: ({target}) => `Render component`,
-  event: ({target}) => `Click on "${target}"`,
-  assertion: ({target}) => `Assert "${target}" is visible`
-};
-
-const defaultStepRenderer = (step) => Object.entries(step).map(([key, val]) =>
-  `${key}: ${typeof val == 'object' ? JSON.stringify(val) : val}`
-).join(', ');
-
-const renderStepLabel = (step) =>
-  STEP_RENDERS[step.type] ? STEP_RENDERS[step.type](step) : defaultStepRenderer(step);
-
-const Step = ({step, result: {result}, selected, active, link, onDelete}) => {
-  return (
-    <StatusLink
-      link={link}
-      status={result}
-      subTitle={step.type}
-      selected={selected}
-      active={active}
-    >
-      {renderStepLabel(step)}
-      {(active && step.type !== 'render') && <button
-        onClick={onDelete}
-        className="block text-xs font-semibold text-red-600 hover:bg-red-600 hover:text-white py-1 px-2 border border-red-600 rounded-full my-2 mr-2">
-        Remove
-      </button>}
-    </StatusLink>
-  )
-};
+import EditStepModal from "./test/EditStepModal";
+import Step from "./test/Step";
 
 const groupBy = (items, key) =>
   items.reduce((prev, curr) => ({
@@ -55,6 +24,7 @@ export default function Test({match: {url}, location: {search}, history}) {
   const [stepResults, setStepResults] = useState([]);
   const [regions, setRegions] = useState([]);
   const [selectedRegion, setSelectedRegion] = useState(null);
+  const [selectedStepIdxToEdit, setSelectedStepIdxToEdit] = useState(null);
 
   const {file, exportName, ...rest} = queryString.parse(search);
   const step = rest.step && parseInt(rest.step, 10);
@@ -90,19 +60,14 @@ export default function Test({match: {url}, location: {search}, history}) {
       .then(setRegions)
   }, [testId, search, steps]);
 
-  const save = steps => {
-    setSteps(
-      steps
-    );
-
-    return fetch(`/test/${test.id}/steps${search}`, {
+  const save = steps =>
+    fetch(`/test/${test.id}/steps${search}`, {
       method: 'put',
       body: JSON.stringify(steps),
       headers: {
         'Content-Type': 'application/json'
       }
-    });
-  };
+    }).then(() => setSteps(steps));
 
   const handleAddStep = stepToAdd => {
     const modifiedSteps = [...steps];
@@ -114,13 +79,16 @@ export default function Test({match: {url}, location: {search}, history}) {
       });
   };
 
-  const handleDeleteStep = (idx) => {
+  const handleDeleteStep = (idx) =>
     save(steps.filter((s, i) => i !== idx))
       .then(() => {
         setSelectedRegion(null);
         history.replace(`${url}?file=${file}&exportName=${exportName}&step=${step}`);
       });
-  };
+
+  const handleEditStep = (stepToUpdate, idx) =>
+    save(steps.map((s, i) => i === idx ? stepToUpdate : s))
+      .then(() => setSelectedStepIdxToEdit(null));
 
   const regionsByType = groupBy(regions, 'type');
 
@@ -141,7 +109,7 @@ export default function Test({match: {url}, location: {search}, history}) {
                   className={
                     `block font-medium text-gray-700 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-2 my-2 focus:rounded-lg w-full text-left`
                   }
-                  key={r.xpath}
+                  key={`${r.xpath}${r.text}`}
                   onClick={() => setSelectedRegion(r)}
                 >
                   {r.text + (r.unique ? '' : ' (not unique)')}
@@ -155,6 +123,16 @@ export default function Test({match: {url}, location: {search}, history}) {
           selectedRegion &&
           <CreateStepModal region={selectedRegion} onSelect={handleAddStep} onClose={() => setSelectedRegion(null)} />
         }
+
+        {
+          (selectedStepIdxToEdit !== null) &&
+          <EditStepModal
+            step={steps[selectedStepIdxToEdit]}
+            onSubmit={(updatedStep) => handleEditStep(updatedStep, selectedStepIdxToEdit)}
+            onClose={() => setSelectedStepIdxToEdit(null)}
+            file={file}
+            exportName={exportName} />
+        }
       </div>
       <div className="md:w-1/2 p-6">
         <div className="my-2">
@@ -166,6 +144,7 @@ export default function Test({match: {url}, location: {search}, history}) {
               active={i === step}
               link={`/tests/${testId}?file=${file}&exportName=${exportName}&step=${i}`}
               onDelete={() => handleDeleteStep(i)}
+              onEdit={() => setSelectedStepIdxToEdit(i)}
               key={i}
             />
           )}
