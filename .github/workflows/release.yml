@@ -1,12 +1,9 @@
-name: Release
-on:
-  push:
-    branches:
-      - master
+name: CI
+on: push
+
 jobs:
-  release:
-    name: Release
-    runs-on: ubuntu-18.04
+  build:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v1
@@ -18,7 +15,10 @@ jobs:
         run: yarn install --frozen-lockfile
       - name: Build UI
         run: yarn build
+      - name: Test API
+        run: yarn test-api
       - name: Release
+        if: github.ref == 'refs/heads/master'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
