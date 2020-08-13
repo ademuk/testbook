@@ -23,7 +23,7 @@ const EditStepModal = ({step, onClose, onSubmit, file, exportName}) => {
 
       <div className="bg-white rounded-lg overflow-hidden shadow-xl transform transition-all sm:max-w-lg sm:w-full"
            role="dialog" aria-modal="true" aria-labelledby="modal-headline">
-        <form onSubmit={(event) => event.preventDefault() && onSubmit({...step, props})}>
+        <form onSubmit={(event) => { event.preventDefault(); onSubmit({...step, props}) }}>
           <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <div className="sm:flex sm:items-start">
 
