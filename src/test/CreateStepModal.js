@@ -10,10 +10,9 @@ const CreateStepModal = ({region, onClose, onSelect}) => (
          role="dialog" aria-modal="true" aria-labelledby="modal-headline">
       <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
         <div className="sm:flex sm:items-start">
-
           <div className="mt-3 text-center sm:mt-0 sm:text-left">
             <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-headline">
-              <span className="font-bold">{region.text}</span> {region.type}
+              {region.text} <span className="font-bold">{region.type}</span>
             </h3>
           </div>
         </div>

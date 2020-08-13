@@ -29,7 +29,7 @@ const EditStepModal = ({step, onClose, onSubmit, file, exportName}) => {
 
               <div className="mt-3 text-center sm:mt-0 sm:text-left">
                 <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-headline">
-                  <span className="font-bold">{renderStepLabel(step)}</span> props
+                  {renderStepLabel(step)} <span className="font-bold">props</span>
                 </h3>
                 <div className="mt-2">
                   <div>
@@ -58,6 +58,10 @@ const EditStepModal = ({step, onClose, onSubmit, file, exportName}) => {
                             />
                           </div>
                         ) : null
+                    }
+                    {
+                      (propTypes && Object.keys(propTypes).length === 0) ?
+                        <p className="text-sm leading-5 text-gray-500">No props were detected for this component.</p> : null
                     }
                   </div>
                 </div>
