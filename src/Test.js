@@ -4,10 +4,11 @@ import {
   Link as RouterLink,
 } from "react-router-dom";
 import queryString from "query-string";
-import CreateStepModal from "./test/CreateStepModal";
-
-import EditStepModal from "./test/EditStepModal";
+import SelectedRegionModal from "./test/SelectedRegionModal";
+import SelectedMockCallModal from "./test/SelectedMockCallModal";
+import EditRenderPropsModal from "./test/EditRenderPropsModal";
 import Step from "./test/Step";
+import EditMockModal from "./test/EditMockModal";
 
 const groupBy = (items, key) =>
   items.reduce((prev, curr) => ({
@@ -17,13 +18,21 @@ const groupBy = (items, key) =>
 
 const capitalise = (text) => text.charAt(0).toUpperCase() + text.slice(1);
 
+const labelMap = {
+  fetch: 'Http requests'
+};
+
+const label = (text) => labelMap[text] ? labelMap[text] : capitalise(text);
+
 export default function Test({match: {url}, location: {search}, history}) {
   const {testId} = useParams();
   const [test, setTest] = useState({});
   const [steps, setSteps] = useState();
   const [stepResults, setStepResults] = useState([]);
+  const [mocks, setMocks] = useState([]);
   const [regions, setRegions] = useState([]);
   const [selectedRegion, setSelectedRegion] = useState(null);
+  const [selectedMockCall, setSelectedMockCall] = useState(null);
   const [selectedStepIdxToEdit, setSelectedStepIdxToEdit] = useState(null);
 
   const {file, exportName, ...rest} = queryString.parse(search);
@@ -49,16 +58,20 @@ export default function Test({match: {url}, location: {search}, history}) {
   }, [testId, file, exportName]);
 
   useEffect(() => {
-    fetch(`/test/${testId}/run?file=${file}&exportName=${exportName}`)
+    if (!steps) {
+      return;
+    }
+
+    fetch(`/test/${testId}/render/side-effects?file=${file}&exportName=${exportName}&step=${step}`)
+      .then(res => res.json())
+      .then(({regions, mocks}) => {
+        setRegions(regions);
+        setMocks(mocks);
+      })
+      .then(() => fetch(`/test/${testId}/run?file=${file}&exportName=${exportName}`))
       .then(res => res.json())
       .then(setStepResults)
-  }, [testId, file, exportName, steps]);
-
-  useEffect(() => {
-    fetch(`/test/${testId}/render/regions${search}`)
-      .then(res => res.json())
-      .then(setRegions)
-  }, [testId, search, steps]);
+  }, [testId, file, exportName, step, steps]);
 
   const save = steps =>
     fetch(`/test/${test.id}/steps${search}`, {
@@ -69,12 +82,15 @@ export default function Test({match: {url}, location: {search}, history}) {
       }
     }).then(() => setSteps(steps));
 
-  const handleAddStep = stepToAdd => {
+  const handleAddStep = (stepToAdd, idx) => {
     const modifiedSteps = [...steps];
-    modifiedSteps.splice(step + 1, 0, stepToAdd);
+
+    modifiedSteps.splice(idx, 0, stepToAdd);
+
     save(modifiedSteps)
       .then(() => {
         setSelectedRegion(null);
+        setSelectedMockCall(null);
         history.replace(`${url}?file=${file}&exportName=${exportName}&step=${step + 1}`);
       });
   };
@@ -91,6 +107,14 @@ export default function Test({match: {url}, location: {search}, history}) {
       .then(() => setSelectedStepIdxToEdit(null));
 
   const regionsByType = groupBy(regions, 'type');
+
+  const editStepComponents = {
+    render: EditRenderPropsModal,
+    mock: EditMockModal
+  };
+
+  const selectedStep = steps && steps[selectedStepIdxToEdit];
+  const EditModalComponent = selectedStep && editStepComponents[selectedStep.type];
 
   return (
     <div className="bg-white flex">
@@ -119,19 +143,52 @@ export default function Test({match: {url}, location: {search}, history}) {
           )
         }
 
-        {
-          selectedRegion &&
-          <CreateStepModal region={selectedRegion} onSelect={handleAddStep} onClose={() => setSelectedRegion(null)} />
+        {!!mocks.length && mocks
+          .map(({name, calls}, i) =>
+            <Fragment key={`${name}${i}`}>
+              <h3>{label(name)}</h3>
+              {calls.map(args =>
+                <button
+                  className={
+                    `block font-medium text-gray-700 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-2 my-2 focus:rounded-lg w-full text-left`
+                  }
+                  key={args}
+                  onClick={() => setSelectedMockCall([name, args])}
+                >
+                  {args}
+                </button>
+              )}
+            </Fragment>
+          )
         }
 
         {
-          (selectedStepIdxToEdit !== null) &&
-          <EditStepModal
-            step={steps[selectedStepIdxToEdit]}
-            onSubmit={(updatedStep) => handleEditStep(updatedStep, selectedStepIdxToEdit)}
+          selectedRegion &&
+          <SelectedRegionModal
+            region={selectedRegion}
+            onSelect={(stepToAdd) => handleAddStep(stepToAdd, step + 1)}
+            onClose={() => setSelectedRegion(null)}
+          />
+        }
+
+        {
+          selectedMockCall &&
+          <SelectedMockCallModal
+            selectedMockCall={selectedMockCall}
+            onUpdateStep={(stepToAdd) => handleAddStep(stepToAdd, stepToAdd.type === 'mock' ? 0 : step + 1)}
+            onClose={() => setSelectedMockCall(null)}
+          />
+        }
+
+        {
+          selectedStepIdxToEdit !== null &&
+          <EditModalComponent
+            step={selectedStep}
+            onUpdateStep={(updatedStep) => handleEditStep(updatedStep, selectedStepIdxToEdit)}
             onClose={() => setSelectedStepIdxToEdit(null)}
             file={file}
-            exportName={exportName} />
+            exportName={exportName}
+          />
         }
       </div>
       <div className="md:w-1/2 p-6">
@@ -152,4 +209,4 @@ export default function Test({match: {url}, location: {search}, history}) {
       </div>
     </div>
   )
-}
+};

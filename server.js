@@ -9,8 +9,7 @@ const hostNodeModulesPath = `${process.cwd()}/node_modules`;
 
 const React = require(`${hostNodeModulesPath}/react`);
 const ReactDOM = require(`${hostNodeModulesPath}/react-dom`);
-const {Simulate} = require(`${hostNodeModulesPath}/react-dom/test-utils`);
-
+const {Simulate, act} = require(`${hostNodeModulesPath}/react-dom/test-utils`);
 
 const findModulesWithComponents = searchPath => {
   return new Promise((resolve, reject) => {
@@ -25,6 +24,9 @@ const findModulesWithComponents = searchPath => {
         if (err) {
           return reject(err)
         }
+
+        setupJSDOM();
+        setupMocks();
 
         Promise.all(files.map(loadModuleWithComponents))
           .then(m =>
@@ -75,12 +77,8 @@ const compileModuleWithWebpack = (modulePath) => {
 };
 
 
-const loadModuleWithComponents = modulePath => {
-  const {window} = createDOM();
-  global.document = window.document;
-  global.window = window;
-
-  return compileModuleWithWebpack(modulePath)
+const loadModuleWithComponents = modulePath =>
+  compileModuleWithWebpack(modulePath)
     .then((compiledModulePath) => {
       try {
         console.log(`Loading file: ${modulePath}`);
@@ -104,7 +102,6 @@ const loadModuleWithComponents = modulePath => {
         };
       }
     });
-};
 
 
 const getExportComponentName = (exportName, filePath) => {
@@ -162,7 +159,7 @@ const getComponentTestStatuses = (file, exportName) =>
       Promise.all(
         tests.map(t =>
           runComponentTest(file, exportName, t.id, t.steps.length - 1)
-            .then(([results]) => [t.id, results])
+            .then(({results}) => [t.id, results])
         )
       )
     ).then(listOfIdsAndResults =>
@@ -223,7 +220,9 @@ const createTest = (file, exportName) => {
     steps: [
       {
         type: "render",
-        props: {}
+        definition: {
+          props: {}
+        }
       }
     ]
   };
@@ -296,26 +295,22 @@ function copyProps(src, target) {
 const render = (file, exportName, props) =>
   compileModuleWithWebpack(file)
     .then((compiledModulePath) => {
-      const {window} = createDOM();
-      global.document = window.document;
-      global.window = window;
-
       const {[exportName]: Component} = require(compiledModulePath);
-
-      // https://github.com/enzymejs/enzyme/blob/master/docs/guides/jsdom.md#using-enzyme-with-jsdom
-      copyProps(window, global);
 
       const container = document.createElement('div');
 
       document.body.appendChild(container);
-      ReactDOM.render(
-        React.createElement(
-          Component,
-          props,
-          null
-        ),
-        container
-      );
+
+      act(() => {
+        ReactDOM.render(
+          React.createElement(
+            Component,
+            props,
+            null
+          ),
+          container
+        );
+      });
 
       return container;
     });
@@ -370,11 +365,14 @@ const findTextNodes = (elem) => {
   return textNodes;
 };
 
-const renderComponentRegions = (file, exportName, testId, step) =>
+const renderComponentSideEffects = (file, exportName, testId, step) =>
   runComponentTest(file, exportName, testId, step)
-    .then(([results, container]) => {
+    .then(({container, mocks}) => {
       if (!container) {
-        return [];
+        return {
+          regions: [],
+          mocks: []
+        };
       }
 
       const elements = findTextNodes(container)
@@ -383,13 +381,17 @@ const renderComponentRegions = (file, exportName, testId, step) =>
           type: ['BUTTON', 'A'].includes(e.nodeName) ? 'button' : 'text',
           xpath: getElementTreeXPath(e)
         }));
-      return elements.map(e => ({
-        ...e,
-        unique: !elements.find(f => f.text === e.text && f.xpath !== e.xpath)
-      }));
+
+      return {
+        regions: elements.map(e => ({
+          ...e,
+          unique: !elements.find(f => f.text === e.text && f.xpath !== e.xpath)
+        })),
+        mocks
+      };
     });
 
-const runRenderStep = (file, exportName, {props}, container) =>
+const runRenderStep = (file, exportName, {definition: {props}}, container, mocks) =>
   render(file, exportName, props)
     .then(
       (c) => ['success', c]
@@ -398,7 +400,7 @@ const runRenderStep = (file, exportName, {props}, container) =>
       () => ['error', container]
     );
 
-const runEventStep = (file, exportName, {eventType, target}, container) => {
+const runEventStep = (file, exportName, {definition: {type, target}}, container, mocks) => {
   const node = findTextNodes(container)
     .find(([e, text]) => text === target);
 
@@ -410,9 +412,11 @@ const runEventStep = (file, exportName, {eventType, target}, container) => {
 
   const [targetNode] = node;
 
-  Simulate[eventType](
-    targetNode
-  );
+  act(() => {
+    Simulate[type](
+      targetNode
+    );
+  });
 
   return Promise.resolve(
     ['success', container]
@@ -436,13 +440,25 @@ const queryAllByText = (container, text) => {
     .filter(node => getNodeText(node) === text)
 };
 
-const runAssertionStep = (file, exportName, step, container) => {
-  if (step.assertionType === 'textIsPresent') {
+const runAssertionStep = (file, exportName, {definition}, container, mocks) => {
+  if (definition.type === 'text') {
     const matches = findTextNodes(container)
-      .filter(([element, text]) => text === step.target);
-
+      .filter(([element, text]) => text === definition.target);
     return Promise.resolve(
       [matches.length ? 'success' : 'error', container]
+    );
+  }
+
+  if (definition.type === 'mock') {
+    const mock = mocks
+      .find((m) => m.name === definition.target.name);
+
+    const calls = mock ? mock.mock.getCalls() : [];
+    const callsWithMatchingArgs =
+      calls.filter((args) => JSON.stringify(args) === JSON.stringify(definition.target.args));
+
+    return Promise.resolve(
+      [callsWithMatchingArgs.length ? 'success' : 'error', container]
     );
   }
 
@@ -452,28 +468,108 @@ const runAssertionStep = (file, exportName, step, container) => {
   ]);
 };
 
+const runMockStep = (file, exportName, step, container, mocks) => {
+  const mock = mocks
+    .find((m) => m.name === step.definition.name);
+
+  mock.mock.addMock(step.definition.args, step.definition.return);
+
+  return Promise.resolve([
+    'success',
+    container
+  ]);
+};
+
+const setupFetchMock = () => {
+  return function() {
+    let calls = [];
+    let mockReturnValues = [];
+
+    global.window.fetch = function () {
+      const callingArgs = Array.from(arguments);
+
+      calls.push(callingArgs);
+
+      const mockReturnValue = mockReturnValues
+        .find(([args, returnValue]) => JSON.stringify(args) === JSON.stringify(callingArgs));
+
+      return Promise.resolve({
+        json: () => Promise.resolve(mockReturnValue ? mockReturnValue[1] : [])
+      });
+    };
+
+    return {
+      addMock: (args, returnValue) => mockReturnValues.push([args, returnValue]),
+      getCalls: () => calls
+    }
+  }();
+};
+
+const MOCKS = [
+  {
+    name: "fetch",
+    setup: setupFetchMock
+  }
+];
+
+const setupMocks = () =>
+  MOCKS.map(({name, setup}) => ({
+    name,
+    mock: setup()
+  }));
 
 const STEP_RUNNERS = {
   render: runRenderStep,
   event: runEventStep,
   assertion: runAssertionStep,
+  mock: runMockStep,
 };
 
-const runStep = (file, exportName, step, container) =>
-  STEP_RUNNERS[step.type](file, exportName, step, container);
+const runStep = (file, exportName, step, container, mocks) => {
+  console.log(`Running step ${JSON.stringify(step)}`);
+
+  return STEP_RUNNERS[step.type](file, exportName, step, container, mocks);
+};
+
+const setupJSDOM = () => {
+  const {window} = createDOM();
+
+  global.document = window.document;
+  global.window = window;
+
+  // https://github.com/enzymejs/enzyme/blob/master/docs/guides/jsdom.md#using-enzyme-with-jsdom
+  copyProps(window, global);
+};
 
 const runComponentTest = (file, exportName, testId, step) =>
   getComponentTest(file, exportName, testId)
-    .then(({steps}) =>
-      steps.reduce((resultsAndContainer, s, idx) =>
+    .then(({steps}) => {
+      setupJSDOM();
+      const mocks = setupMocks();
+
+      return steps.reduce((resultsAndContainer, s, idx) =>
         resultsAndContainer.then(([results, container]) =>
-          (idx <= (step === undefined ? steps.length - 1 : step) && !results.find(r => r.result === 'error')) ? runStep(file, exportName, s, container)
-            .then(([result, newContainer]) => [
-               [...results, {result}],
-              newContainer
-            ]) : Promise.resolve([results, container])
+          (
+            idx <= (step === undefined ? steps.length - 1 : step) &&
+            !results.find(r => r.result === 'error')
+          ) ?
+            runStep(file, exportName, s, container, mocks)
+              .then(([result, newContainer]) => [
+                [...results, {result}],
+                newContainer
+              ]) :
+            Promise.resolve([results, container])
         ), Promise.resolve([[], null]))
-    );
+        .then((resultsAndContainer) => [resultsAndContainer, mocks]);
+    })
+    .then(([[results, container], mocks]) => ({
+      results,
+      container,
+      mocks: mocks.map(({name, mock}) => ({
+        name,
+        calls: mock.getCalls()
+      }))
+    }));
 
 const valueMap = {
   'an array': 'array',
@@ -597,9 +693,9 @@ app.put(
 );
 
 app.get(
-  '/test/:testId/render/regions',
+  '/test/:testId/render/side-effects',
   (req, res) =>
-    renderComponentRegions(path.join(SEARCH_PATH, req.query.file), req.query.exportName, req.params.testId, req.query.step)
+    renderComponentSideEffects(path.join(SEARCH_PATH, req.query.file), req.query.exportName, req.params.testId, req.query.step)
       .then(
         test => res.send(test)
       )
@@ -610,7 +706,7 @@ app.get(
   (req, res, next) =>
     runComponentTest(path.join(SEARCH_PATH, req.query.file), req.query.exportName, req.params.testId, req.query.step)
       .then(
-        ([results]) => res.send(results)
+        ({results}) => res.send(results)
       )
       .catch(next)
 );
