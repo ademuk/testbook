@@ -2,6 +2,26 @@ import React, {useEffect, useState} from "react";
 import {renderStepLabel} from "./Step";
 import Modal, {ModalBody, ModalFooter, ModalHeader} from "../Modal";
 
+const JSON_PROP_TYPES = ['object', 'array'];
+
+const PROP_TYPE_INPUT_COMPONENTS = {
+  number: (props) => <input type="number" {...props} />,
+  boolean: (props) => (
+    <select {...props}>
+      <option value="" disabled>boolean</option>
+      <option value="true">true</option>
+      <option value="false">false</option>
+    </select>
+  ),
+  object: (props) => <textarea {...props} />,
+  array: (props) => <textarea {...props} />,
+};
+
+const PropInput = ({propType, ...rest}) => {
+  const Component = PROP_TYPE_INPUT_COMPONENTS[propType] || ((props) => <input type="text" {...props} />);
+  return <Component {...rest} />;
+};
+
 const isValidJson = (value) => {
   try {
     JSON.parse(value);
@@ -12,12 +32,12 @@ const isValidJson = (value) => {
 };
 
 const isValidProp = (value, propType, required) => {
-  if (([undefined, ''].includes(value)) && required) {
+  if (propType !== 'string' && value === '' && required) {
     return false;
   }
 
-  if (propType === 'object') {
-    return isValidJson(value);
+  if (JSON_PROP_TYPES.includes(propType)) {
+    return (value === '' && !required) || isValidJson(value);
   }
 
   return true;
@@ -36,7 +56,10 @@ const serialiseProps = (props, propTypes) =>
   }), {});
 
 const serialiseProp = (value, propType, required) => {
-  if (propType === 'object') {
+  if (JSON_PROP_TYPES.includes(propType)) {
+    if (value === '') {
+      return undefined;
+    }
     try {
       return JSON.parse(value)
     } catch {
@@ -44,23 +67,44 @@ const serialiseProp = (value, propType, required) => {
     }
   }
 
+  if (propType === 'number') {
+    if (value === '') {
+      return undefined;
+    }
+    return parseInt(value, 10);
+  }
+
+  if (propType === 'boolean') {
+    if (value === undefined) {
+      return value;
+    }
+    return value === 'true';
+  }
+
   return value;
 };
 
 const deserialiseProps = (props, propTypes) =>
-  Object.entries(props).reduce((prev, [propName, value]) => ({
-    ...prev,
-    [propName]: deserialiseProp(value, ...propTypes[propName])
-  }), {});
+  Object.entries(props)
+    .filter(([propName, value]) => propTypes[propName])
+    .reduce((prev, [propName, value]) => ({
+      ...prev,
+      [propName]: deserialiseProp(value, ...propTypes[propName])
+    }), {});
 
 const deserialiseProp = (value, propType, required) => {
-  if (propType === 'object') {
+  if (JSON_PROP_TYPES.includes(propType)) {
     try {
       return JSON.stringify(value)
     } catch {
       return value
     }
   }
+
+  if (['number', 'boolean'].includes(propType)) {
+    return value !== undefined ? value.toString() : value;
+  }
+
   return value;
 };
 
@@ -116,10 +160,10 @@ const EditRenderPropsModal = ({step, onClose, onUpdateStep, file, exportName}) =
                     <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor={propName}>
                       {propName}{required && <span>*</span>}
                     </label>
-                    <input
-                      className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${!propsValidation[propName] && isFormDirty ? 'border-red-400' : 'border-gray-200'}`}
+                    <PropInput
+                      propType={propType}
+                      className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${propsValidation[propName] === false && isFormDirty ? 'border-red-400' : 'border-gray-200'}`}
                       id={propName}
-                      type="text"
                       placeholder={propType}
                       name={propName}
                       required={required}
