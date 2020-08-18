@@ -15,10 +15,11 @@ const PROP_TYPE_INPUT_COMPONENTS = {
   ),
   object: (props) => <textarea {...props} />,
   array: (props) => <textarea {...props} />,
+  default: (props) => <input type="text" {...props} />
 };
 
 const PropInput = ({propType, ...rest}) => {
-  const Component = PROP_TYPE_INPUT_COMPONENTS[propType] || ((props) => <input type="text" {...props} />);
+  const Component = PROP_TYPE_INPUT_COMPONENTS[propType] || PROP_TYPE_INPUT_COMPONENTS.default;
   return <Component {...rest} />;
 };
 
