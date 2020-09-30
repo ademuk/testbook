@@ -1,10 +1,19 @@
 import React, {useEffect, useState} from "react";
 import {renderStepLabel} from "./Step";
 import Modal, {ModalBody, ModalFooter, ModalHeader} from "../Modal";
+import type {StepDefinition} from '../Test';
 
-const EditMockModal = ({step, onClose, onUpdateStep, file, exportName}) => {
+export type EditStepProps = {
+  step: StepDefinition;
+  onClose: () => void;
+  onUpdateStep: (step: StepDefinition) => void;
+  file: string;
+  exportName: string;
+}
+
+const EditMockModal: React.FC<EditStepProps> = ({step, onClose, onUpdateStep}) => {
   const [returnValue, setReturnValue] = useState('');
-  const [isValidJson, setIsValidJson] = useState();
+  const [isValidJson, setIsValidJson] = useState(true);
 
   useEffect(() => {
     setReturnValue(JSON.stringify(step.definition.return))

@@ -1,31 +1,48 @@
 import React, {useEffect, useState} from 'react';
+import {RouteComponentProps} from 'react-router-dom';
 import queryString from "query-string";
 import StatusLink from "./StatusLink";
+import LoadingIndicator from './LoadingIndicator';
 
 
-const handleSave = (file, exportName, cb) =>
+const handleSave = (file: string, exportName: string, cb: (response: {id: number}) => void): Promise<Test[] | void> =>
   fetch(`/test?file=${file}&exportName=${exportName}`, {
       method: 'post',
     })
     .then(r => r.json())
     .then(cb);
 
-export default function Tests({history, location: {search}}) {
-  const [tests, setTests] = useState([]);
-  const [testStatuses, setTestStatuses] = useState([]);
+type Test = {
+    id: string
+};
+
+const Tests: React.FunctionComponent<RouteComponentProps> = ({history, location: {search}}) => {
+  const [tests, setTests] = useState<Test[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [testStatuses, setTestStatuses] = useState<{[key: string]: string}>({});
   const {file, exportName} = queryString.parse(search);
 
   useEffect(() => {
-    fetch(`/test?file=${file}&exportName=${exportName}`)
-      .then(res => res.json())
-      .then(setTests)
+      fetch(`/test?file=${file}&exportName=${exportName}`)
+          .then(res => res.json())
+          .then(setTests)
+          .finally(() => setIsLoading(false))
   }, [file, exportName]);
 
   useEffect(() => {
-    fetch(`/test/status${search}`)
-      .then(res => res.json())
-      .then(setTestStatuses)
+      fetch(`/test/status${search}`)
+          .then(res => res.json())
+          .then(setTestStatuses)
   }, [tests, search]);
+
+  if (typeof file != 'string' || typeof exportName != 'string') {
+    history.replace('/');
+    return null;
+  }
+
+  if (isLoading) {
+    return <LoadingIndicator>Loading tests...</LoadingIndicator>
+  }
 
   return (
     <div className="p-6 bg-white">
@@ -34,7 +51,7 @@ export default function Tests({history, location: {search}}) {
       </div>
 
       <div className="py-3">
-        {!!tests && tests.map(t =>
+        {tests.map(t =>
           <StatusLink
             link={`/tests/${t.id}?file=${file}&exportName=${exportName}`}
             status={testStatuses[t.id]}
@@ -63,4 +80,6 @@ export default function Tests({history, location: {search}}) {
       </button>
     </div>
   )
- }
+};
+
+export default Tests;

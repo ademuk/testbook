@@ -1,7 +1,14 @@
 import React from "react";
 import Modal, {ModalBody, ModalFooter, ModalHeader} from "../Modal";
+import type {StepDefinition, RegionDefinition} from "../Test";
 
-const SelectedRegionModal = ({region, onClose, onSelect}) => (
+type SelectedRegionModalProps = {
+  region: RegionDefinition;
+  onClose: () => void;
+  onSelect: (step: StepDefinition) => void
+};
+
+const SelectedRegionModal = ({region, onClose, onSelect}: SelectedRegionModalProps) => (
   <Modal onClose={onClose}>
     <ModalBody>
       <ModalHeader>

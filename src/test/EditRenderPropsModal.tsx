@@ -1,10 +1,21 @@
 import React, {useEffect, useState} from "react";
 import {renderStepLabel} from "./Step";
 import Modal, {ModalBody, ModalFooter, ModalHeader} from "../Modal";
+import type {EditStepProps} from './EditMockModal';
 
 const JSON_PROP_TYPES = ['object', 'array'];
 
-const PROP_TYPE_INPUT_COMPONENTS = {
+type InputProps = {
+  className: string;
+  id: string;
+  placeholder: string;
+  name: string;
+  required: boolean;
+  value: string;
+  onChange: ({target: {name, value}}: {target: {name: string, value: string}}) => void;
+};
+
+const PROP_TYPE_INPUT_COMPONENTS: {[key: string]: React.FC<InputProps>} = {
   number: (props) => <input type="number" {...props} />,
   boolean: (props) => (
     <select {...props}>
@@ -18,12 +29,12 @@ const PROP_TYPE_INPUT_COMPONENTS = {
   default: (props) => <input type="text" {...props} />
 };
 
-const PropInput = ({propType, ...rest}) => {
-  const Component = PROP_TYPE_INPUT_COMPONENTS[propType] || PROP_TYPE_INPUT_COMPONENTS.default;
+const PropInput = ({propType, ...rest}: {propType: string} & InputProps) => {
+  const Component:React.FC<InputProps> = PROP_TYPE_INPUT_COMPONENTS[propType] || PROP_TYPE_INPUT_COMPONENTS.default;
   return <Component {...rest} />;
 };
 
-const isValidJson = (value) => {
+const isValidJson = (value: string): boolean => {
   try {
     JSON.parse(value);
     return true;
@@ -32,7 +43,7 @@ const isValidJson = (value) => {
   }
 };
 
-const isValidProp = (value, propType, required) => {
+const isValidProp = (value: string, propType: string, required: boolean): boolean => {
   if (propType !== 'string' && value === '' && required) {
     return false;
   }
@@ -44,19 +55,26 @@ const isValidProp = (value, propType, required) => {
   return true;
 };
 
-const validateProps = (props, propTypes) =>
+type PropTypes = {[key: string]: [string, boolean]}
+
+type Props = {[key: string]: any}
+
+const validateProps = (props: Props, propTypes: PropTypes) =>
   Object.entries(props).reduce((prev, [propName, value]) => ({
     ...prev,
     [propName]: isValidProp(value, ...propTypes[propName])
   }), {});
 
-const serialiseProps = (props, propTypes) =>
-  Object.entries(props).reduce((prev, [propName, value]) => ({
-    ...prev,
-    [propName]: serialiseProp(value, ...propTypes[propName])
-  }), {});
+const serialiseProps = (props: Props, propTypes: PropTypes) =>
+  Object.entries(props).reduce((prev, [propName, value]) => {
+    const [propType] = propTypes[propName];
+    return {
+      ...prev,
+      [propName]: serialiseProp(value, propType)
+    }
+  }, {});
 
-const serialiseProp = (value, propType, required) => {
+const serialiseProp = (value: string, propType: string) => {
   if (JSON_PROP_TYPES.includes(propType)) {
     if (value === '') {
       return undefined;
@@ -85,15 +103,18 @@ const serialiseProp = (value, propType, required) => {
   return value;
 };
 
-const deserialiseProps = (props, propTypes) =>
+const deserialiseProps = (props: Props, propTypes: PropTypes) =>
   Object.entries(props)
-    .filter(([propName, value]) => propTypes[propName])
-    .reduce((prev, [propName, value]) => ({
-      ...prev,
-      [propName]: deserialiseProp(value, ...propTypes[propName])
-    }), {});
+    .filter(([propName]) => propTypes[propName])
+    .reduce((prev, [propName, value]) => {
+      const [propType] = propTypes[propName];
+      return {
+        ...prev,
+        [propName]: deserialiseProp(value, propType)
+      };
+    }, {});
 
-const deserialiseProp = (value, propType, required) => {
+const deserialiseProp = (value: string, propType: string) => {
   if (JSON_PROP_TYPES.includes(propType)) {
     try {
       return JSON.stringify(value)
@@ -109,10 +130,10 @@ const deserialiseProp = (value, propType, required) => {
   return value;
 };
 
-const EditRenderPropsModal = ({step, onClose, onUpdateStep, file, exportName}) => {
-  const [propTypes, setPropTypes] = useState(null);
-  const [props, setProps] = useState(null);
-  const [propsValidation, setPropsValidation] = useState({});
+const EditRenderPropsModal: React.FC<EditStepProps> = ({step, onClose, onUpdateStep, file, exportName}) => {
+  const [propTypes, setPropTypes] = useState<PropTypes>();
+  const [props, setProps] = useState<Props>();
+  const [propsValidation, setPropsValidation] = useState<{[key: string]: boolean}>({});
   const [isFormDirty, setIsFormDirty] = useState(false);
 
   useEffect(() => {
@@ -137,10 +158,12 @@ const EditRenderPropsModal = ({step, onClose, onUpdateStep, file, exportName}) =
     <Modal onClose={onClose}>
       <form onSubmit={(event) => {
         event.preventDefault();
+
         if (!Object.values(propsValidation).every(v => v)) {
           return;
         }
-        onUpdateStep({
+
+        props && propTypes && onUpdateStep({
           ...step,
           definition: {
             ...step.definition,
@@ -163,14 +186,14 @@ const EditRenderPropsModal = ({step, onClose, onUpdateStep, file, exportName}) =
                     </label>
                     <PropInput
                       propType={propType}
-                      className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${propsValidation[propName] === false && isFormDirty ? 'border-red-400' : 'border-gray-200'}`}
+                      className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${!propsValidation[propName] && isFormDirty ? 'border-red-400' : 'border-gray-200'}`}
                       id={propName}
                       placeholder={propType}
                       name={propName}
                       required={required}
                       value={(props && props[propName]) || ''}
                       onChange={
-                        ({target: {name, value}}) => {
+                        ({target: {name, value}}: {target: {name: string, value: string}}) => {
                           setProps(props => ({
                             ...props,
                             [name]: value
@@ -184,7 +207,7 @@ const EditRenderPropsModal = ({step, onClose, onUpdateStep, file, exportName}) =
             }
             {
               propTypes && Object.entries(propTypes)
-                .some(([propName, [propType, required]]) =>required) && <p className="text-sm leading-5 text-gray-500 text-right">* Required prop</p>
+                .some(([, [, required]]) => required) && <p className="text-sm leading-5 text-gray-500 text-right">* Required prop</p>
             }
             {
               (propTypes && Object.keys(propTypes).length === 0) ?

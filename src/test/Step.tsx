@@ -1,29 +1,40 @@
-import StatusLink from "../StatusLink";
 import React from "react";
+import StatusLink from "../StatusLink";
+import type {StepDefinition, StepResultDefinition} from "../Test";
 
-const defaultStepRenderer = (step) => Object.entries(step).map(([key, val]) =>
+const defaultStepRenderer = (step: StepDefinition) => Object.entries(step).map(([key, val]) =>
   `${key}: ${typeof val == 'object' ? JSON.stringify(val) : val}`
 ).join(', ');
 
-const STEP_LABELS = {
+const STEP_LABELS: {[key: string]: (step: StepDefinition) => string} = {
   render: () => `Render component`,
-  event: ({definition: {target}}) => `Click on "${target}"`,
-  assertion: ({definition: {type, target}}) =>
+  event: ({definition: {target}}: StepDefinition) => `Click on "${target}"`,
+  assertion: ({definition: {type, target}}: StepDefinition) =>
     type === 'text' ? `Assert "${target}" is visible` : `Assert ${type} ${target.name} ${target.args} called`,
-  mock: ({definition: {name, args}}) => `Mock ${name} ${args}`,
+  mock: ({definition: {name, args}}: StepDefinition) => `Mock ${name} ${args}`,
 };
 
-export const renderStepLabel = (step) =>
+export const renderStepLabel = (step: StepDefinition) =>
   STEP_LABELS[step.type] ? STEP_LABELS[step.type](step) : defaultStepRenderer(step);
 
-const STEP_EDIT_LABELS = {
+const STEP_EDIT_LABELS: {[key: string]: (step: StepDefinition) => string} = {
   render: () => 'Edit props',
 };
 
-const editStepLabel = (step) =>
+const editStepLabel = (step: StepDefinition) =>
   STEP_EDIT_LABELS[step.type] ? STEP_EDIT_LABELS[step.type](step) : 'Edit';
 
-const Step = ({step, result: {result}, selected, active, link, onDelete, onEdit}) => {
+type StepProps = {
+  step: StepDefinition;
+  result: StepResultDefinition;
+  selected: boolean;
+  active: boolean;
+  link: string;
+  onDelete: () => void;
+  onEdit: () => void;
+};
+
+const Step = ({step, result: {result}, selected, active, link, onDelete, onEdit}: StepProps) => {
   const {type} = step;
   return (
     <StatusLink
