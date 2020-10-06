@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const openBrowser = require('react-dev-utils/openBrowser');
-const {startServer} = require("../server");
+const {startServer} = require("../server/build/server");
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'development';
 

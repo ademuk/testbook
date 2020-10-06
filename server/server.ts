@@ -1,3 +1,5 @@
+/* eslint-disable react/forbid-foreign-prop-types */
+
 const path = require("path");
 const fs = require("fs");
 const express = require('express');
@@ -11,8 +13,8 @@ const React = require(`${hostNodeModulesPath}/react`);
 const ReactDOM = require(`${hostNodeModulesPath}/react-dom`);
 const {Simulate, act} = require(`${hostNodeModulesPath}/react-dom/test-utils`);
 
-const findModulesWithComponents = searchPath => {
-  return new Promise((resolve, reject) => {
+const findModulesWithComponents = (searchPath): Promise<LoadedModule[]> =>
+  new Promise((resolve, reject) => {
     glob(
       path.join(searchPath, "**/*.js"),
       {
@@ -28,18 +30,20 @@ const findModulesWithComponents = searchPath => {
         setupJSDOM();
         setupMocks();
 
-        Promise.all(files.map(loadModuleWithComponents))
-          .then(m =>
+        (Promise.all(files.map(loadModuleWithComponents)) as Promise<LoadedModule[]>)
+          .then((m) =>
             m.filter(m => !m.error && m.components.length)
-              .map(m => ({...m, file: m.file.replace(new RegExp(`^src${path.sep}`), '')}))
+              .map(
+                (m) =>
+                  ({...m, file: m.file.replace(new RegExp(`^src${path.sep}`), '')})
+              )
           )
           .then(resolve)
       }
     );
   });
-};
 
-const compileModuleWithWebpack = (modulePath) => {
+const compileModuleWithWebpack = (modulePath): Promise<string> => {
   const webpack = require("webpack");
 
   const craWebpackConfig = require(`${hostNodeModulesPath}/react-scripts/config/webpack.config`)(process.env.NODE_ENV);
@@ -76,8 +80,35 @@ const compileModuleWithWebpack = (modulePath) => {
   });
 };
 
+type StepDefinition = {
+  type: string;
+  definition: {
+    [key: string]: any
+  }
+};
 
-const loadModuleWithComponents = modulePath =>
+type TestDefinition = {
+  id: string;
+  steps: StepDefinition[]
+}
+
+type ComponentDefinition = {
+  name: string;
+  tests: TestDefinition[];
+}
+
+type LoadedComponent = {
+  name: string;
+  exportName;
+}
+
+type LoadedModule = {
+  file: string;
+  components: LoadedComponent[];
+  error?: string
+}
+
+const loadModuleWithComponents = (modulePath) : Promise<LoadedModule> =>
   compileModuleWithWebpack(modulePath)
     .then((compiledModulePath) => {
       try {
@@ -118,8 +149,7 @@ const getExportComponentName = (exportName, filePath) => {
   return exportName;
 };
 
-
-const findComponentsInModule = (module, modulePath) =>
+const findComponentsInModule = (module, modulePath): LoadedComponent[] =>
   Object.keys(module)
     .map(
       exportName => ({
@@ -142,11 +172,11 @@ const findComponentsInModule = (module, modulePath) =>
       ({exportName}) => ({name: getExportComponentName(exportName, modulePath), exportName})
     );
 
-const getComponent = (file, exportName) =>
+const getComponent = (file, exportName): Promise<ComponentDefinition> =>
   getFile(file)
     .then(f => f.components.find(c => c.name === exportName));
 
-const getComponentTests = (file, exportName) =>
+const getComponentTests = (file, exportName): Promise<TestDefinition[]> =>
   getComponent(file, exportName)
     .then(
       c => c ? c.tests : [],
@@ -155,7 +185,7 @@ const getComponentTests = (file, exportName) =>
 
 const getComponentTestStatuses = (file, exportName) =>
   getComponentTests(file, exportName)
-    .then(tests =>
+    .then((tests: TestDefinition[]) =>
       Promise.all(
         tests.map(t =>
           runComponentTest(file, exportName, t.id, t.steps.length - 1)
@@ -163,7 +193,7 @@ const getComponentTestStatuses = (file, exportName) =>
         )
       )
     ).then(listOfIdsAndResults =>
-      listOfIdsAndResults.reduce((prev, [testId, results]) => ({
+      listOfIdsAndResults.reduce((prev: any, [testId, results]: [string, any]) => ({
         ...prev,
         [testId]: results.every(r => r.result === 'success') ? 'success' : 'error'
       }), {})
@@ -173,13 +203,17 @@ const getComponentTest = (file, exportName, testId) =>
   getComponentTests(file, exportName)
     .then(t => t.find(t => t.id === testId));
 
-const getOrCreateFileJson = (file) =>
+const getOrCreateFileJson = (file): Promise<LoadedFile> =>
   getFile(file)
     .catch(() => ({
       components: []
     }));
 
-const getFile = file =>
+type LoadedFile = {
+  components: ComponentDefinition[];
+}
+
+const getFile = (file): Promise<LoadedFile> =>
   new Promise((resolve, reject) =>
     fs.readFile(`${file}.tests.json`, 'utf8', (err, data) =>
       err ? reject() : resolve(JSON.parse(data))
@@ -198,19 +232,20 @@ const writeFile = (file, payload) =>
   );
 
 const createDOM = () =>
-  new JSDOM('<!doctype html><html><body></body></html>', {
+  new JSDOM('<!doctype html><html lang="en-GB"><body /></html>', {
     url: 'http://localhost'
   });
 
-const getOrCreateComponent = (fileJson, exportName) => {
+const getOrCreateComponent = (fileJson: LoadedFile, exportName) => {
   const component = fileJson.components.find(c => c.name === exportName);
   return component ? fileJson : {
-    components: fileJson.components.concat([
+    components: [
+      ...fileJson.components,
       {
         name: exportName,
         tests: []
       }
-    ])
+    ]
   };
 };
 
@@ -278,7 +313,7 @@ const updateTestSteps = (file, exportName, testId, steps) =>
         fs.writeFile(
           `${file}.tests.json`,
           JSON.stringify(payload, null, 2),
-          (err, data) => {
+          (err) => {
             err ? reject() : resolve(payload);
           }
         );
@@ -391,7 +426,7 @@ const renderComponentSideEffects = (file, exportName, testId, step) =>
       };
     });
 
-const runRenderStep = (file, exportName, {definition: {props}}, container, mocks) =>
+const runRenderStep = (file, exportName, {definition: {props}}, container) =>
   render(file, exportName, props)
     .then(
       (c) => ['success', c]
@@ -400,9 +435,9 @@ const runRenderStep = (file, exportName, {definition: {props}}, container, mocks
       () => ['error', container]
     );
 
-const runEventStep = (file, exportName, {definition: {type, target}}, container, mocks) => {
+const runEventStep = (file, exportName, {definition: {type, target}}, container) => {
   const node = findTextNodes(container)
-    .find(([e, text]) => text === target);
+    .find(([, text]) => text === target);
 
   if (!node) {
     return Promise.resolve(
@@ -423,27 +458,10 @@ const runEventStep = (file, exportName, {definition: {type, target}}, container,
   );
 };
 
-
-function getNodeText(node) {
-  if (node.matches('input[type=submit], input[type=button]')) {
-    return node.value
-  }
-
-  return Array.from(node.childNodes)
-    .filter(child => child.nodeType === Node.TEXT_NODE && Boolean(child.textContent))
-    .map(c => c.textContent)
-    .join('')
-}
-
-const queryAllByText = (container, text) => {
-  return Array.from(container.querySelectorAll('*'))
-    .filter(node => getNodeText(node) === text)
-};
-
 const runAssertionStep = (file, exportName, {definition}, container, mocks) => {
   if (definition.type === 'text') {
     const matches = findTextNodes(container)
-      .filter(([element, text]) => text === definition.target);
+      .filter(([, text]) => text === definition.target);
     return Promise.resolve(
       [matches.length ? 'success' : 'error', container]
     );
@@ -480,29 +498,34 @@ const runMockStep = (file, exportName, step, container, mocks) => {
   ]);
 };
 
-const setupFetchMock = () => {
-  return function() {
-    let calls = [];
-    let mockReturnValues = [];
+type MockCall = [any[], any];
 
-    global.window.fetch = function () {
-      const callingArgs = Array.from(arguments);
+type SetupMock = {
+  addMock: (args: any[], returnValue: any) => void;
+  getCalls: () => MockCall[]
+}
 
-      calls.push(callingArgs);
+const setupFetchMock = (): SetupMock => {
+  let calls = [];
+  let mockReturnValues = [];
 
-      const mockReturnValue = mockReturnValues
-        .find(([args, returnValue]) => JSON.stringify(args) === JSON.stringify(callingArgs));
+  global.window.fetch = function (input: RequestInfo, init: RequestInit): Promise<any> {
+    const callingArgs = Array.from(arguments);
 
-      return Promise.resolve({
-        json: () => Promise.resolve(mockReturnValue ? mockReturnValue[1] : [])
-      });
-    };
+    calls.push(callingArgs);
 
-    return {
-      addMock: (args, returnValue) => mockReturnValues.push([args, returnValue]),
-      getCalls: () => calls
-    }
-  }();
+    const mockReturnValue = mockReturnValues
+      .find(([args]) => JSON.stringify(args) === JSON.stringify(callingArgs));
+
+    return Promise.resolve({
+      json: () => Promise.resolve(mockReturnValue ? mockReturnValue[1] : [])
+    });
+  };
+
+  return {
+    addMock: (args, returnValue) => mockReturnValues.push([args, returnValue]),
+    getCalls: () => calls
+  }
 };
 
 const MOCKS = [
@@ -512,7 +535,17 @@ const MOCKS = [
   }
 ];
 
-const setupMocks = () =>
+type Mock = {
+  name: string;
+  mock: SetupMock;
+}
+
+type MockResult = {
+  name: string;
+  calls: MockCall[];
+}
+
+const setupMocks = (): Mock[] =>
   MOCKS.map(({name, setup}) => ({
     name,
     mock: setup()
@@ -525,7 +558,7 @@ const STEP_RUNNERS = {
   mock: runMockStep,
 };
 
-const runStep = (file, exportName, step, container, mocks) => {
+const runStep = (file, exportName, step, container, mocks): Promise<[string, any]> => {
   console.log(`Running step ${JSON.stringify(step)}`);
 
   return STEP_RUNNERS[step.type](file, exportName, step, container, mocks);
@@ -534,33 +567,50 @@ const runStep = (file, exportName, step, container, mocks) => {
 const setupJSDOM = () => {
   const {window} = createDOM();
 
-  global.document = window.document;
-  global.window = window;
+  (global.document as any) = window.document;
+  (global.window as any) = window;
 
   // https://github.com/enzymejs/enzyme/blob/master/docs/guides/jsdom.md#using-enzyme-with-jsdom
   copyProps(window, global);
 };
 
-const runComponentTest = (file, exportName, testId, step) =>
+type Result = string;
+type ResultObj = {
+  result: string;
+}
+
+type ResultsAndContainer = [ResultObj[], HTMLElement];
+
+type TestResult = {
+  results: ResultObj[];
+  container: HTMLElement;
+  mocks: MockResult[];
+};
+
+const runComponentTest = (file, exportName, testId, step): Promise<TestResult> =>
   getComponentTest(file, exportName, testId)
-    .then(({steps}) => {
+    .then(({steps}): Promise<[ResultsAndContainer, Mock[]]> => {
       setupJSDOM();
       const mocks = setupMocks();
 
-      return steps.reduce((resultsAndContainer, s, idx) =>
-        resultsAndContainer.then(([results, container]) =>
-          (
-            idx <= (step === undefined ? steps.length - 1 : step) &&
-            !results.find(r => r.result === 'error')
-          ) ?
-            runStep(file, exportName, s, container, mocks)
-              .then(([result, newContainer]) => [
-                [...results, {result}],
-                newContainer
-              ]) :
-            Promise.resolve([results, container])
-        ), Promise.resolve([[], null]))
-        .then((resultsAndContainer) => [resultsAndContainer, mocks]);
+      return (
+        steps.reduce(
+          (resultsAndContainer: Promise<ResultsAndContainer>, s: StepDefinition, idx: number): Promise<ResultsAndContainer> =>
+            resultsAndContainer.then(([results, container]): Promise<ResultsAndContainer> =>
+              (
+                idx <= (step === undefined ? steps.length - 1 : step) &&
+                !results.find(r => r.result === 'error')
+              ) ?
+                runStep(file, exportName, s, container, mocks)
+                  .then(([result, newContainer]: [Result, HTMLElement]): ResultsAndContainer => [
+                    [...results, {result}],
+                    newContainer
+                  ]) :
+                Promise.resolve([results, container] as ResultsAndContainer)
+            ),
+          Promise.resolve([[], null] as ResultsAndContainer)
+        ) as Promise<ResultsAndContainer>
+      ).then((resultsAndContainer) => [resultsAndContainer, mocks]);
     })
     .then(([[results, container], mocks]) => ({
       results,
@@ -590,7 +640,7 @@ const parsePropTypeMessage = (message, defaultType) => {
     result = r ? r[1] : null;
   }
 
-  const oneOfPattern = /expected one of (\[.*\])/g;
+  const oneOfPattern = /expected one of (\[.*])/g;
   if (message.message.match(oneOfPattern)) {
     const r = oneOfPattern.exec(message.message);
     result = r ? `oneOf:${r[1]}` : null;
@@ -721,13 +771,15 @@ app.get(
       .catch(next)
 );
 
+const CLIENT_STATIC_ROOT = '../../build';
+
 app.use(
   '/',
-  express.static(path.join(__dirname + '/build'))
+  express.static(path.join(__dirname, CLIENT_STATIC_ROOT))
 );
 
 app.get('/*', function (req, res) {
-  res.sendFile(path.join(__dirname, 'build', 'index.html'));
+  res.sendFile(path.join(__dirname, CLIENT_STATIC_ROOT, 'index.html'));
 });
 
 module.exports.startServer = () =>
