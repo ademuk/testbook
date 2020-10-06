@@ -40,7 +40,7 @@ const StatusLink: React.FC<StatusLinkProps> = ({
   >
     <span
       className={`${
-        status && (stepClassNames[status] || "bg-gray-400")
+        ((status && stepClassNames[status]) || "bg-gray-400")
       } h-2 w-2 m-2 rounded-full`}
     />
     <div className="flex-grow font-medium px-2">{children}</div>
