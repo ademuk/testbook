@@ -771,21 +771,31 @@ app.get(
       .catch(next)
 );
 
-const CLIENT_STATIC_ROOT = '../../build';
 
-app.use(
-  '/',
-  express.static(path.join(__dirname, CLIENT_STATIC_ROOT))
-);
+const startServer = (client_static_root) => {
+  app.use(
+    '/',
+    express.static(path.join(__dirname, client_static_root))
+  );
 
-app.get('/*', function (req, res) {
-  res.sendFile(path.join(__dirname, CLIENT_STATIC_ROOT, 'index.html'));
-});
+  app.get('/*', (req, res) =>
+    res.sendFile(path.join(__dirname, client_static_root, 'index.html'))
+  );
 
-module.exports.startServer = () =>
-  new Promise((resolve) =>
+  return new Promise((resolve) =>
     app.listen(
       PORT,
       () => resolve(PORT)
     )
   );
+};
+
+module.exports.startServer = startServer;
+
+const isCLI = require.main === module;
+
+if (isCLI) {
+  const [client_static_root] = process.argv.slice(2);
+  startServer(client_static_root)
+    .then((port) => console.log(`Started Testbook development server on port ${port}`));
+}
