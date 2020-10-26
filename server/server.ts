@@ -1,17 +1,19 @@
 /* eslint-disable react/forbid-foreign-prop-types */
 
+import {Context, Script} from "vm";
+import {runMockStep} from "./mocks";
+import {findTextNodes, getElementTreeXPath} from "./dom";
+
 const path = require("path");
 const fs = require("fs");
 const express = require('express');
 const glob = require("glob");
 const {v1: uuidv1} = require('uuid');
-const {JSDOM} = require('jsdom');
+const {JSDOM, VirtualConsole} = require('jsdom');
+const webpack = require("webpack");
 
 const hostNodeModulesPath = `${process.cwd()}/node_modules`;
-
-const React = require(`${hostNodeModulesPath}/react`);
-const ReactDOM = require(`${hostNodeModulesPath}/react-dom`);
-const {Simulate, act} = require(`${hostNodeModulesPath}/react-dom/test-utils`);
+const {act} = require(`${hostNodeModulesPath}/react-dom/test-utils`);
 
 const findModulesWithComponents = (searchPath): Promise<LoadedModule[]> =>
   new Promise((resolve, reject) => {
@@ -27,9 +29,6 @@ const findModulesWithComponents = (searchPath): Promise<LoadedModule[]> =>
           return reject(err)
         }
 
-        setupJSDOM();
-        setupMocks();
-
         (Promise.all(files.map(loadModuleWithComponents)) as Promise<LoadedModule[]>)
           .then((m) =>
             m.filter(m => !m.error && m.components.length)
@@ -43,30 +42,27 @@ const findModulesWithComponents = (searchPath): Promise<LoadedModule[]> =>
     );
   });
 
-const compileModuleWithWebpack = (modulePath): Promise<string> => {
-  const webpack = require("webpack");
-
+const compileModuleWithHostWebpack = (modulePath: string): Promise<[string, string]> => {
   const craWebpackConfig = require(`${hostNodeModulesPath}/react-scripts/config/webpack.config`)(process.env.NODE_ENV);
-  const config = {
-    ...craWebpackConfig,
-    entry: [path.resolve(modulePath)],
-    output: {
-      filename: modulePath,
-      libraryTarget: 'umd'
-    },
-    optimization: {
-      ...craWebpackConfig.optimization,
-      splitChunks: false,
-      runtimeChunk: false
-    },
-    externals: {
-      'react': 'react',
-      'react-dom' : 'reactDOM'
-    }
-  };
 
-  return new Promise((resolve, reject) => {
-    webpack(config, (err, stats) => {
+  return new Promise((resolve, reject) =>
+    webpack({
+      ...craWebpackConfig,
+      entry: [path.resolve(modulePath)],
+      output: {
+        filename: modulePath,
+        libraryTarget: 'umd'
+      },
+      optimization: {
+        ...craWebpackConfig.optimization,
+        splitChunks: false,
+        runtimeChunk: false
+      },
+      externals: {
+        react: 'react',
+        "react-dom": 'react-dom',
+      }
+    }, (err, stats) => {
       if (err) {
         return reject(err);
       }
@@ -75,10 +71,95 @@ const compileModuleWithWebpack = (modulePath): Promise<string> => {
         return reject(stats.toJson().errors);
       }
 
-      return resolve(path.resolve(path.join(stats.toJson().outputPath, modulePath)));
-    });
-  });
+      return resolve([stats.toJson().outputPath, modulePath]);
+    })
+  );
 };
+
+const compileWrapperWithWebpack = (wrapperModulePath: string,): Promise<string> =>
+  new Promise((resolve, reject) =>
+    webpack({
+      entry: [wrapperModulePath],
+      output: {
+        filename: path.basename(wrapperModulePath),
+      },
+      module: {
+        rules: [
+          {
+            test: /\.tsx?$/,
+            use: require.resolve('ts-loader'),
+            exclude: /node_modules/,
+          },
+        ],
+      },
+      resolve: {
+        extensions: [ '.tsx', '.ts', '.js' ],
+      },
+    }, (err, stats) => {
+      if (err) {
+        return reject(err);
+      }
+
+      if (stats.hasErrors()) {
+        return reject(stats.toJson().errors);
+      }
+
+      return resolve(path.resolve(path.join(stats.toJson().outputPath, path.basename(wrapperModulePath))));
+    })
+  ).then((wrapperModulePath) => new Promise((resolve, reject) =>
+    fs.readFile(wrapperModulePath, function (err, data) {
+      if (err) {
+        return reject(err);
+      }
+      resolve(data.toString());
+    })
+  ));
+
+const compileWrapperAndModuleWithWebpack = (wrapperModulePath: string, modulePath: string, moduleFilename: string): Promise<string> =>
+  new Promise((resolve, reject) =>
+    webpack({
+      entry: [wrapperModulePath],
+      output: {
+        filename: path.join(path.basename(wrapperModulePath), moduleFilename),
+      },
+      mode: 'development',
+      module: {
+        rules: [
+          {
+            test: /\.tsx?$/,
+            use: require.resolve('ts-loader'),
+            exclude: /node_modules/,
+          },
+        ],
+      },
+      resolve: {
+        extensions: [ '.tsx', '.ts', '.js' ],
+        alias: {
+          module: modulePath && path.resolve(path.join(modulePath, moduleFilename)),
+          react: `${hostNodeModulesPath}/react`,
+          "react-dom": `${hostNodeModulesPath}/react-dom`,
+        }
+      },
+    }, (err, stats) => {
+      if (err) {
+        return reject(err);
+      }
+
+      if (stats.hasErrors()) {
+        return reject(stats.toJson().errors);
+      }
+
+      return resolve(path.resolve(path.join(stats.toJson().outputPath, path.basename(wrapperModulePath), moduleFilename)));
+    })
+  ).then((wrapperModulePath) => new Promise((resolve, reject) =>
+    fs.readFile(wrapperModulePath, function (err, data) {
+      if (err) {
+        return reject(err);
+      }
+      resolve(data.toString());
+    })
+  ));
+
 
 type StepDefinition = {
   type: string;
@@ -97,7 +178,7 @@ type ComponentDefinition = {
   tests: TestDefinition[];
 }
 
-type LoadedComponent = {
+export type LoadedComponent = {
   name: string;
   exportName;
 }
@@ -109,29 +190,33 @@ type LoadedModule = {
 }
 
 const loadModuleWithComponents = (modulePath) : Promise<LoadedModule> =>
-  compileModuleWithWebpack(modulePath)
-    .then((compiledModulePath) => {
-      try {
-        console.log(`Loading file: ${modulePath}`);
-        return {
-          file: modulePath,
-          components: findComponentsInModule(
-            require(compiledModulePath), modulePath
-          ).sort(
+  compileModuleWithHostWebpack(modulePath)
+    .then(([outputPath, filename]) =>
+      compileWrapperAndModuleWithWebpack(require.resolve("./findComponentsInModule"), outputPath, filename)
+    )
+    .then((moduleCode: string) => {
+      const script = new Script(moduleCode);
+      const context = createDOM().getInternalVMContext();
+      script.runInContext(context);
+
+      return {
+        file: modulePath,
+        components: context.result && context.result
+          .map((exportName) => ({exportName, name: getExportComponentName(exportName, modulePath)}))
+          .sort(
             (a, b) =>
               b.exportName === 'default' ? 1: -1
           )
-        };
-      }
-      catch(error) {
-        console.log(`Load failed ${error}`);
+      };
+    })
+    .catch((error) => {
+      console.log(`Load failed ${error}`);
 
-        return {
-          file: modulePath,
-          components: [],
-          error
-        };
-      }
+      return {
+        file: modulePath,
+        components: [],
+        error
+      };
     });
 
 
@@ -148,29 +233,6 @@ const getExportComponentName = (exportName, filePath) => {
 
   return exportName;
 };
-
-const findComponentsInModule = (module, modulePath): LoadedComponent[] =>
-  Object.keys(module)
-    .map(
-      exportName => ({
-        exportName,
-        exportedModule: module[exportName]
-      })
-    )
-    .filter(({exportedModule}) => {
-      if (exportedModule.propTypes) {
-        return true;
-      }
-
-      const container = document.createElement('div');
-
-      ReactDOM.render(React.createElement(exportedModule), container);
-
-      return !!container;
-    })
-    .map(
-      ({exportName}) => ({name: getExportComponentName(exportName, modulePath), exportName})
-    );
 
 const getComponent = (file, exportName): Promise<ComponentDefinition> =>
   getFile(file)
@@ -189,7 +251,7 @@ const getComponentTestStatuses = (file, exportName) =>
       Promise.all(
         tests.map(t =>
           runComponentTest(file, exportName, t.id, t.steps.length - 1)
-            .then(({results}) => [t.id, results])
+            .then(([results]) => [t.id, results])
         )
       )
     ).then(listOfIdsAndResults =>
@@ -233,7 +295,10 @@ const writeFile = (file, payload) =>
 
 const createDOM = () =>
   new JSDOM('<!doctype html><html lang="en-GB"><body /></html>', {
-    url: 'http://localhost'
+    pretendToBeVisual: true,
+    runScripts: 'dangerously',
+    url: 'http://localhost',
+    virtualConsole: new VirtualConsole().sendTo(console)
   });
 
 const getOrCreateComponent = (fileJson: LoadedFile, exportName) => {
@@ -320,89 +385,31 @@ const updateTestSteps = (file, exportName, testId, steps) =>
       })
     });
 
-function copyProps(src, target) {
-  Object.defineProperties(target, {
-    ...Object.getOwnPropertyDescriptors(src),
-    ...Object.getOwnPropertyDescriptors(target),
-  });
-}
-
-const render = (file, exportName, props) =>
-  compileModuleWithWebpack(file)
-    .then((compiledModulePath) => {
-      const {[exportName]: Component} = require(compiledModulePath);
-
-      const container = document.createElement('div');
-
-      document.body.appendChild(container);
-
-      act(() => {
-        ReactDOM.render(
-          React.createElement(
-            Component,
-            props,
-            null
-          ),
-          container
-        );
-      });
-
-      return container;
+const render = (file, exportName, props, context) =>
+  compileModuleWithHostWebpack(file)
+    .then(([moduleOutputPath, moduleFilename]) =>
+      compileWrapperAndModuleWithWebpack(require.resolve("./render"), moduleOutputPath, moduleFilename)
+    )
+    .then((moduleCode) => {
+      const script = new Script(moduleCode);
+      context.exportName = exportName;
+      context.props = props;
+      script.runInContext(context);
     });
 
-const getElementTreeXPath = element => {
-  // https://stackoverflow.com/questions/3454526/how-to-calculate-the-xpath-position-of-an-element-using-javascript#answer-3454545
-
-  var paths = [];  // Use nodeName (instead of localName)
-
-  // so namespace prefix is included (if any).
-  for (;element && element.nodeType === Node.ELEMENT_NODE; element = element.parentNode) {
-    let index = 0;
-    let hasFollowingSiblings = false;
-    let sibling;
-
-    for (sibling = element.previousSibling; sibling; sibling = sibling.previousSibling) {
-      // Ignore document type declaration.
-      if (sibling.nodeType === Node.DOCUMENT_TYPE_NODE) {
-        continue;
-      }
-
-      if (sibling.nodeName === element.nodeName) {
-        ++index;
-      }
-    }
-
-    for (sibling = element.nextSibling; sibling && !hasFollowingSiblings; sibling = sibling.nextSibling) {
-      if (sibling.nodeName === element.nodeName)
-        hasFollowingSiblings = true;
-    }
-
-    const tagName = (element.prefix ? element.prefix + ":" : "") + element.localName;
-    const pathIndex = (index || hasFollowingSiblings ? "[" + (index + 1) + "]" : "");
-
-    paths.splice(0, 0, tagName + pathIndex);
-  }
-
-  return paths.length ? "/" + paths.join("/") : null;
-};
-
-const findTextNodes = (elem) => {
-  let textNodes = [];
-  if (elem) {
-    elem.childNodes.forEach((node) => {
-      if (node.nodeType === 3) {
-        textNodes.push([node.parentNode, node.textContent.trim()]);
-      } else if (node.nodeType === 1 || node.nodeType === 9 || node.nodeType === 11) {
-        textNodes = textNodes.concat(findTextNodes(node));
-      }
+const setupVmContextWithContainerAndMocks = (): Context =>
+  compileWrapperWithWebpack(require.resolve("./setupContainerAndMocks"))
+    .then((moduleCode) => {
+      const script = new Script(moduleCode);
+      const context = createDOM().getInternalVMContext();
+      script.runInContext(context);
+      return context
     });
-  }
-  return textNodes;
-};
 
 const renderComponentSideEffects = (file, exportName, testId, step) =>
   runComponentTest(file, exportName, testId, step)
-    .then(({container, mocks}) => {
+    .then(([, context]) => {
+      const {container, mocks} = context;
       if (!container) {
         return {
           regions: [],
@@ -414,7 +421,7 @@ const renderComponentSideEffects = (file, exportName, testId, step) =>
         .map(([e, text]) => ({
           text,
           type: ['BUTTON', 'A'].includes(e.nodeName) ? 'button' : 'text',
-          xpath: getElementTreeXPath(e)
+          xpath: getElementTreeXPath(e, context)
         }));
 
       return {
@@ -422,48 +429,53 @@ const renderComponentSideEffects = (file, exportName, testId, step) =>
           ...e,
           unique: !elements.find(f => f.text === e.text && f.xpath !== e.xpath)
         })),
-        mocks
+        mocks: mocks.map(({name, mock}) => ({
+          name,
+          calls: mock.getCalls()
+        }))
       };
     });
 
-const runRenderStep = (file, exportName, {definition: {props}}, container) =>
-  render(file, exportName, props)
+const runRenderStep = (file, exportName, {definition: {props}}, context: Context): Promise<ResultAndContext> =>
+  render(file, exportName, props, context)
     .then(
-      (c) => ['success', c]
+      () => ['success', context] as ResultAndContext
     )
     .catch(
-      () => ['error', container]
+      (e) => {console.log(e);return ['error', context]}
     );
 
-const runEventStep = (file, exportName, {definition: {type, target}}, container) => {
+const runEventStep = (file, exportName, {definition: {type, target}}, context: Context): Promise<ResultAndContext> => {
+  const {container} = context;
   const node = findTextNodes(container)
     .find(([, text]) => text === target);
 
   if (!node) {
     return Promise.resolve(
-      ['error', container]
+      ['error', context]
     );
   }
 
   const [targetNode] = node;
 
   act(() => {
-    Simulate[type](
-      targetNode
+    targetNode.dispatchEvent(
+      new context.Event(type, { bubbles: true, cancelable: false, composed: false })
     );
   });
 
   return Promise.resolve(
-    ['success', container]
+    ['success', context]
   );
 };
 
-const runAssertionStep = (file, exportName, {definition}, container, mocks) => {
+const runAssertionStep = (file, exportName, {definition}, context: Context): Promise<ResultAndContext> => {
+  const {container, mocks} = context;
   if (definition.type === 'text') {
     const matches = findTextNodes(container)
       .filter(([, text]) => text === definition.target);
     return Promise.resolve(
-      [matches.length ? 'success' : 'error', container]
+      [matches.length ? 'success' : 'error', context]
     );
   }
 
@@ -476,80 +488,15 @@ const runAssertionStep = (file, exportName, {definition}, container, mocks) => {
       calls.filter((args) => JSON.stringify(args) === JSON.stringify(definition.target.args));
 
     return Promise.resolve(
-      [callsWithMatchingArgs.length ? 'success' : 'error', container]
+      [callsWithMatchingArgs.length ? 'success' : 'error', context]
     );
   }
 
   return Promise.resolve([
     'error',
-    container
+    context
   ]);
 };
-
-const runMockStep = (file, exportName, step, container, mocks) => {
-  const mock = mocks
-    .find((m) => m.name === step.definition.name);
-
-  mock.mock.addMock(step.definition.args, step.definition.return);
-
-  return Promise.resolve([
-    'success',
-    container
-  ]);
-};
-
-type MockCall = [any[], any];
-
-type SetupMock = {
-  addMock: (args: any[], returnValue: any) => void;
-  getCalls: () => MockCall[]
-}
-
-const setupFetchMock = (): SetupMock => {
-  let calls = [];
-  let mockReturnValues = [];
-
-  global.window.fetch = function (input: RequestInfo, init: RequestInit): Promise<any> {
-    const callingArgs = Array.from(arguments);
-
-    calls.push(callingArgs);
-
-    const mockReturnValue = mockReturnValues
-      .find(([args]) => JSON.stringify(args) === JSON.stringify(callingArgs));
-
-    return Promise.resolve({
-      json: () => Promise.resolve(mockReturnValue ? mockReturnValue[1] : [])
-    });
-  };
-
-  return {
-    addMock: (args, returnValue) => mockReturnValues.push([args, returnValue]),
-    getCalls: () => calls
-  }
-};
-
-const MOCKS = [
-  {
-    name: "fetch",
-    setup: setupFetchMock
-  }
-];
-
-type Mock = {
-  name: string;
-  mock: SetupMock;
-}
-
-type MockResult = {
-  name: string;
-  calls: MockCall[];
-}
-
-const setupMocks = (): Mock[] =>
-  MOCKS.map(({name, setup}) => ({
-    name,
-    mock: setup()
-  }));
 
 const STEP_RUNNERS = {
   render: runRenderStep,
@@ -558,68 +505,44 @@ const STEP_RUNNERS = {
   mock: runMockStep,
 };
 
-const runStep = (file, exportName, step, container, mocks): Promise<[string, any]> => {
-  console.log(`Running step ${JSON.stringify(step)}`);
-
-  return STEP_RUNNERS[step.type](file, exportName, step, container, mocks);
-};
-
-const setupJSDOM = () => {
-  const {window} = createDOM();
-
-  (global.document as any) = window.document;
-  (global.window as any) = window;
-
-  // https://github.com/enzymejs/enzyme/blob/master/docs/guides/jsdom.md#using-enzyme-with-jsdom
-  copyProps(window, global);
-};
-
 type Result = string;
 type ResultObj = {
   result: string;
 }
 
-type ResultsAndContainer = [ResultObj[], HTMLElement];
+type ResultsAndContext = [ResultObj[], Context];
+type ResultAndContext = [Result, Context];
 
-type TestResult = {
-  results: ResultObj[];
-  container: HTMLElement;
-  mocks: MockResult[];
+
+const runStep = (file, exportName, step, context): Promise<ResultAndContext> => {
+  console.log(`Running step ${JSON.stringify(step)}`);
+
+  return STEP_RUNNERS[step.type](file, exportName, step, context);
 };
 
-const runComponentTest = (file, exportName, testId, step): Promise<TestResult> =>
-  getComponentTest(file, exportName, testId)
-    .then(({steps}): Promise<[ResultsAndContainer, Mock[]]> => {
-      setupJSDOM();
-      const mocks = setupMocks();
-
-      return (
-        steps.reduce(
-          (resultsAndContainer: Promise<ResultsAndContainer>, s: StepDefinition, idx: number): Promise<ResultsAndContainer> =>
-            resultsAndContainer.then(([results, container]): Promise<ResultsAndContainer> =>
-              (
-                idx <= (step === undefined ? steps.length - 1 : step) &&
-                !results.find(r => r.result === 'error')
-              ) ?
-                runStep(file, exportName, s, container, mocks)
-                  .then(([result, newContainer]: [Result, HTMLElement]): ResultsAndContainer => [
-                    [...results, {result}],
-                    newContainer
-                  ]) :
-                Promise.resolve([results, container] as ResultsAndContainer)
-            ),
-          Promise.resolve([[], null] as ResultsAndContainer)
-        ) as Promise<ResultsAndContainer>
-      ).then((resultsAndContainer) => [resultsAndContainer, mocks]);
-    })
-    .then(([[results, container], mocks]) => ({
-      results,
-      container,
-      mocks: mocks.map(({name, mock}) => ({
-        name,
-        calls: mock.getCalls()
-      }))
-    }));
+const runComponentTest = (file, exportName, testId, step): Promise<ResultsAndContext> =>
+  Promise.all([
+    setupVmContextWithContainerAndMocks(),
+    getComponentTest(file, exportName, testId)
+  ]).then(([context, {steps}]): Promise<ResultsAndContext> => (
+      steps.reduce(
+        (resultsAndContext: Promise<ResultsAndContext>, s: StepDefinition, idx: number): Promise<ResultsAndContext> =>
+          resultsAndContext.then(([results, context]): Promise<ResultsAndContext> =>
+            (
+              idx <= (step === undefined ? steps.length - 1 : step) &&
+              !results.find(r => r.result === 'error')
+            ) ?
+              runStep(file, exportName, s, context)
+                .then(([result, newContext]: ResultAndContext): ResultsAndContext => [
+                  [...results, {result}],
+                  newContext,
+                ]) :
+              Promise.resolve([results, context] as ResultsAndContext)
+          ),
+        Promise.resolve([[], context] as ResultsAndContext)
+      )
+    )
+  ).then(([results, context]) => [results, context.close() || context]);
 
 const valueMap = {
   'an array': 'array',
@@ -673,13 +596,12 @@ const inferPropTypes = (propTypes) =>
 
 module.exports.inferPropTypes = inferPropTypes;
 
-const getComponentPropTypes = (modulePath, exportName) => {
-  return compileModuleWithWebpack(modulePath)
-    .then((compiledModulePath) => {
-      const component = require(compiledModulePath)[exportName];
+const getComponentPropTypes = (modulePath, exportName) =>
+  compileModuleWithHostWebpack(modulePath)
+    .then(([moduleOutputPath, moduleFilename]) => {
+      const component = require(path.join(moduleOutputPath, moduleFilename))[exportName];
       return component.propTypes ? inferPropTypes(component.propTypes) : {};
     });
-};
 
 const app = express();
 const PORT = 9010;
@@ -756,7 +678,7 @@ app.get(
   (req, res, next) =>
     runComponentTest(path.join(SEARCH_PATH, req.query.file), req.query.exportName, req.params.testId, req.query.step)
       .then(
-        ({results}) => res.send(results)
+        ([results]) => res.send(results)
       )
       .catch(next)
 );
