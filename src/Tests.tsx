@@ -23,16 +23,18 @@ const Tests: React.FunctionComponent<RouteComponentProps> = ({history, location:
   const {file, exportName} = queryString.parse(search);
 
   useEffect(() => {
-      fetch(`/test?file=${file}&exportName=${exportName}`)
-          .then(res => res.json())
-          .then(setTests)
-          .finally(() => setIsLoading(false))
+    fetch(`/test?file=${file}&exportName=${exportName}`)
+      .then(res => res.json())
+      .then(setTests)
+      .finally(() => setIsLoading(false))
   }, [file, exportName]);
 
   useEffect(() => {
+    if (tests.length) {
       fetch(`/test/status${search}`)
-          .then(res => res.json())
-          .then(setTestStatuses)
+        .then(res => res.json())
+        .then(setTestStatuses)
+    }
   }, [tests, search]);
 
   if (typeof file != 'string' || typeof exportName != 'string') {

@@ -22,7 +22,7 @@ const capitalise = (text: string) =>
   text.charAt(0).toUpperCase() + text.slice(1);
 
 const labelMap: { [key: string]: string } = {
-  fetch: "Http requests",
+  fetch: "HTTP requests",
 };
 
 const label = (text: string) =>
@@ -91,20 +91,25 @@ const Test = ({history, file, exportName, test, step}: TestProps) => {
   }, [test.steps]);
 
   useEffect(() => {
-    fetch(
-      `/test/${test.id}/render/side-effects?file=${file}&exportName=${exportName}&step=${step}`
-    )
-      .then((res) => res.json())
-      .then(({ regions, mocks }) => {
-        setRegions(regions);
-        setMocks(mocks);
-      })
-      .then(() =>
-        fetch(`/test/${test.id}/run?file=${file}&exportName=${exportName}`)
+    if (steps.length) {
+      fetch(
+        `/test/${test.id}/render/side-effects?file=${file}&exportName=${exportName}&step=${step}`
       )
-      .then((res) => res.json())
-      .then(setStepResults);
+        .then((res) => res.json())
+        .then(({ regions, mocks }) => {
+          setRegions(regions);
+          setMocks(mocks);
+        })
+    }
   }, [file, exportName, test.id, step, steps]);
+
+  useEffect(() => {
+    if (steps.length) {
+      fetch(`/test/${test.id}/run?file=${file}&exportName=${exportName}`)
+        .then((res) => res.json())
+        .then(setStepResults);
+    }
+  }, [file, exportName, test.id, steps]);
 
   const save = (steps: StepDefinition[]) =>
     fetch(`/test/${test.id}/steps?file=${file}&exportName=${exportName}`, {
@@ -185,7 +190,7 @@ const Test = ({history, file, exportName, test, step}: TestProps) => {
 
         {!!mocks.length &&
         mocks.map(({ name, calls }, i) => (
-          <Fragment key={`${name}${i}`}>
+          !!calls.length && (<Fragment key={`${name}${i}`}>
             <h3>{label(name)}</h3>
             {calls.map((args, i) => (
               <button
@@ -196,7 +201,7 @@ const Test = ({history, file, exportName, test, step}: TestProps) => {
                 {args}
               </button>
             ))}
-          </Fragment>
+          </Fragment>)
         ))}
 
         {selectedRegion && (
