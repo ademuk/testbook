@@ -7,6 +7,7 @@ import SelectedMockCallModal from "./test/SelectedMockCallModal";
 import EditRenderPropsModal from "./test/EditRenderPropsModal";
 import Step from "./test/Step";
 import EditMockModal, {EditStepProps} from "./test/EditMockModal";
+import StepResultModal from "./test/StepResultModal";
 import LoadingIndicator from "./LoadingIndicator";
 
 const groupBy = <T, K extends keyof any>(items: T[], getKey: (item: T) => K): {[key: string]: T[]} =>
@@ -40,8 +41,17 @@ export type StepDefinition = {
   }
 };
 
-export type StepResultDefinition = {
-  result: string
+
+export type StepError = {
+  name: string;
+  message: string;
+  stack: string;
+  componentStack?: string;
+};
+
+export type StepResult = {
+  result: string;
+  error?: StepError
 }
 
 export type RegionDefinition = {
@@ -73,12 +83,13 @@ type TestProps = {
 
 const Test = ({history, file, exportName, test, step}: TestProps) => {
   const [steps, setSteps] = useState<StepDefinition[]>([]);
-  const [stepResults, setStepResults] = useState<StepResultDefinition[]>([]);
+  const [stepResults, setStepResults] = useState<StepResult[]>([]);
   const [mocks, setMocks] = useState<MockCalls[]>([]);
   const [regions, setRegions] = useState<RegionDefinition[]>([]);
   const [selectedRegion, setSelectedRegion] = useState<RegionDefinition>();
   const [selectedMockCall, setSelectedMockCall] = useState<MockCall>();
   const [selectedStep, setSelectedStep] = useState<StepDefinition>();
+  const [selectedStepResult, setSelectedStepResult] = useState<[StepDefinition, StepResult]>();
 
   useEffect(() => {
     if (test && step > steps.length - 1) {
@@ -233,6 +244,13 @@ const Test = ({history, file, exportName, test, step}: TestProps) => {
             exportName={exportName}
           />
         )}
+
+        {selectedStepResult &&
+          <StepResultModal
+            stepAndResult={selectedStepResult}
+            onClose={() => setSelectedStepResult(undefined)}
+          />
+        }
       </div>
       <div className="md:w-1/2 p-6">
         <div className="my-2">
@@ -247,6 +265,7 @@ const Test = ({history, file, exportName, test, step}: TestProps) => {
               link={`/tests/${test.id}?file=${file}&exportName=${exportName}&step=${i}`}
               onDelete={() => handleDeleteStep(i)}
               onEdit={() => setSelectedStep(steps[i])}
+              onResultClick={(stepResults[i] && stepResults[i].result  === 'error') ? (() => setSelectedStepResult([s, stepResults[i]])) : undefined}
               key={i}
             />
           ))}
