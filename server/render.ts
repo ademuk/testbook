@@ -7,19 +7,54 @@ declare global {
   interface Window {
     exportName: string;
     props: {[key: string]: any};
+    error: [Error, {componentStack: string}];
   }
 }
 
 const Component = m[window.exportName];
 
+type State = {
+  error: Error
+}
 
-act(() => {
-  ReactDOM.render(
-    React.createElement(
-      Component,
-      window.props,
-      null
-    ),
-    window.container
-  );
-});
+class ErrorBoundary extends React.Component<{}, State> {
+  constructor(props) {
+    super(props);
+
+    this.state = {
+      error: null
+    }
+  }
+
+  static getDerivedStateFromError(error) {
+    return {
+      error
+    }
+  }
+
+  componentDidCatch(error, errorInfo) {
+    window.error = [error, errorInfo];
+  }
+
+  render() {
+    return !this.state.error && this.props.children;
+  }
+}
+
+window.result = new Promise((resolve, reject) =>
+  act(() => {
+    ReactDOM.render(
+      React.createElement(
+        ErrorBoundary,
+        null,
+        React.createElement(
+          Component,
+          window.props,
+          null
+        )
+      ),
+      window.container,
+      () => window.error ? reject(window.error) : resolve()
+    );
+  })
+);

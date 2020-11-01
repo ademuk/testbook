@@ -1,6 +1,6 @@
 import React from "react";
 import StatusLink from "../StatusLink";
-import type {StepDefinition, StepResultDefinition} from "../Test";
+import type {StepDefinition, StepResult} from "../Test";
 
 const defaultStepRenderer = (step: StepDefinition) => Object.entries(step).map(([key, val]) =>
   `${key}: ${typeof val == 'object' ? JSON.stringify(val) : val}`
@@ -26,15 +26,16 @@ const editStepLabel = (step: StepDefinition) =>
 
 type StepProps = {
   step: StepDefinition;
-  result: StepResultDefinition;
+  result: StepResult;
   selected: boolean;
   active: boolean;
   link: string;
   onDelete: () => void;
   onEdit: () => void;
+  onResultClick?: (e: React.MouseEvent<HTMLElement>) => void;
 };
 
-const Step = ({step, result: {result}, selected, active, link, onDelete, onEdit}: StepProps) => {
+const Step = ({step, result: {result}, selected, active, link, onDelete, onEdit, onResultClick}: StepProps) => {
   const {type} = step;
   return (
     <StatusLink
@@ -43,6 +44,7 @@ const Step = ({step, result: {result}, selected, active, link, onDelete, onEdit}
       subTitle={type}
       selected={selected}
       active={active}
+      onResultClick={onResultClick}
     >
       {renderStepLabel(step)}
 

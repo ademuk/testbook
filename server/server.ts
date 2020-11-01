@@ -198,6 +198,7 @@ const loadModuleWithComponents = (modulePath) : Promise<LoadedModule> =>
       const script = new Script(moduleCode);
       const context = createDOM().getInternalVMContext();
       script.runInContext(context);
+      context.close();
 
       return {
         file: modulePath,
@@ -385,6 +386,33 @@ const updateTestSteps = (file, exportName, testId, steps) =>
       })
     });
 
+class RenderError extends Error {
+  public componentStack?: string;
+
+  constructor(name, message = undefined, stack = undefined, componentStack = undefined) {
+    super(message);
+    Object.setPrototypeOf(this, new.target.prototype);
+
+    this.name = name;
+    this.stack = stack;
+    this.componentStack = componentStack;
+  }
+}
+
+class EventError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'EventError';
+  }
+}
+
+class AssertionError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'AssertionError';
+  }
+}
+
 const render = (file, exportName, props, context) =>
   compileModuleWithHostWebpack(file)
     .then(([moduleOutputPath, moduleFilename]) =>
@@ -395,6 +423,14 @@ const render = (file, exportName, props, context) =>
       context.exportName = exportName;
       context.props = props;
       script.runInContext(context);
+      return context.result;
+    }).catch(([errorException, {componentStack}]) => {
+      throw new RenderError(
+        errorException.name,
+        errorException.message,
+        errorException.stack,
+        componentStack
+      );
     });
 
 const setupVmContextWithContainerAndMocks = (): Context =>
@@ -442,7 +478,7 @@ const runRenderStep = (file, exportName, {definition: {props}}, context: Context
       () => ['success', context] as ResultAndContext
     )
     .catch(
-      (e) => {console.log(e);return ['error', context]}
+      (e) => [e, context]
     );
 
 const runEventStep = (file, exportName, {definition: {type, target}}, context: Context): Promise<ResultAndContext> => {
@@ -452,7 +488,7 @@ const runEventStep = (file, exportName, {definition: {type, target}}, context: C
 
   if (!node) {
     return Promise.resolve(
-      ['error', context]
+      [new EventError(`Text '${target}' could not be found`), context]
     );
   }
 
@@ -469,31 +505,31 @@ const runEventStep = (file, exportName, {definition: {type, target}}, context: C
   );
 };
 
-const runAssertionStep = (file, exportName, {definition}, context: Context): Promise<ResultAndContext> => {
+const runAssertionStep = (file, exportName, {definition: {type, target}}, context: Context): Promise<ResultAndContext> => {
   const {container, mocks} = context;
-  if (definition.type === 'text') {
+  if (type === 'text') {
     const matches = findTextNodes(container)
-      .filter(([, text]) => text === definition.target);
+      .filter(([, text]) => text === target);
     return Promise.resolve(
-      [matches.length ? 'success' : 'error', context]
+      [matches.length ? 'success' : new AssertionError(`Text '${target}' could not be found`), context]
     );
   }
 
-  if (definition.type === 'mock') {
+  if (type === 'mock') {
     const mock = mocks
-      .find((m) => m.name === definition.target.name);
+      .find((m) => m.name === target.name);
 
     const calls = mock ? mock.mock.getCalls() : [];
     const callsWithMatchingArgs =
-      calls.filter((args) => JSON.stringify(args) === JSON.stringify(definition.target.args));
+      calls.filter((args) => JSON.stringify(args) === JSON.stringify(target.args));
 
     return Promise.resolve(
-      [callsWithMatchingArgs.length ? 'success' : 'error', context]
+      [callsWithMatchingArgs.length ? 'success' : new AssertionError(`Mock '${target.name}' was not called with args '${target.args}'`), context]
     );
   }
 
   return Promise.resolve([
-    'error',
+    new AssertionError(`Invalid assertion type '${type}'`),
     context
   ]);
 };
@@ -505,9 +541,9 @@ const STEP_RUNNERS = {
   mock: runMockStep,
 };
 
-type Result = string;
+type Result = RenderError | EventError | AssertionError | string;
 type ResultObj = {
-  result: string;
+  result: Result;
 }
 
 type ResultsAndContext = [ResultObj[], Context];
@@ -530,7 +566,7 @@ const runComponentTest = (file, exportName, testId, step): Promise<ResultsAndCon
           resultsAndContext.then(([results, context]): Promise<ResultsAndContext> =>
             (
               idx <= (step === undefined ? steps.length - 1 : step) &&
-              !results.find(r => r.result === 'error')
+              !results.find(r => r.result instanceof Error)
             ) ?
               runStep(file, exportName, s, context)
                 .then(([result, newContext]: ResultAndContext): ResultsAndContext => [
@@ -678,7 +714,19 @@ app.get(
   (req, res, next) =>
     runComponentTest(path.join(SEARCH_PATH, req.query.file), req.query.exportName, req.params.testId, req.query.step)
       .then(
-        ([results]) => res.send(results)
+        ([results]) => res.send(
+          results.map(
+            ({result}) => (result instanceof Error ? {
+                result: 'error',
+                error: {
+                  name: result.name,
+                  message: result.message,
+                  stack: result.stack,
+                  componentStack: result instanceof RenderError ? result.componentStack : undefined,
+                }
+              } : {result})
+            )
+        )
       )
       .catch(next)
 );

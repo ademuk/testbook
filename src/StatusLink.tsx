@@ -24,6 +24,7 @@ type StatusLinkProps = {
   active?: boolean;
   subTitle?: string;
   status?: string;
+  onResultClick?: (e: React.MouseEvent<HTMLElement>) => void,
 };
 
 const StatusLink: React.FC<StatusLinkProps> = ({
@@ -33,6 +34,7 @@ const StatusLink: React.FC<StatusLinkProps> = ({
   active = false,
   subTitle = null,
   status = null,
+  onResultClick = null
 }) => (
   <RouterLink
     to={link}
@@ -41,8 +43,10 @@ const StatusLink: React.FC<StatusLinkProps> = ({
     <span
       className={`${
         ((status && stepClassNames[status]) || "bg-gray-400")
-      } h-2 w-2 m-2 rounded-full`}
+      } h-2 w-2 m-2 rounded-full ${onResultClick && 'hover:bg-red-700'}`}
+      onClick={onResultClick ? onResultClick : () => {}}
     />
+
     <div className="flex-grow font-medium px-2">{children}</div>
     {subTitle && (
       <div className="text-xs font-normal text-gray-500 tracking-wide">
