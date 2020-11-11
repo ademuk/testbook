@@ -1,29 +1,28 @@
-/* eslint-disable react/forbid-foreign-prop-types */
-
 import {Context, Script} from "vm";
 import {runMockStep} from "./mocks";
 import {findTextNodes, getElementTreeXPath} from "./dom";
 
-const path = require("path");
-const fs = require("fs");
-const express = require('express');
-const glob = require("glob");
-const {v1: uuidv1} = require('uuid');
-const {JSDOM, VirtualConsole} = require('jsdom');
-const webpack = require("webpack");
+import path from "path";
+import fs from "fs";
+import express from 'express';
+import glob from "glob";
+import {v1 as uuidv1} from 'uuid';
+import {JSDOM, VirtualConsole} from 'jsdom';
+import webpack from "webpack";
+import {getTsPropTypes} from "./propTypes";
 
 const hostNodeModulesPath = `${process.cwd()}/node_modules`;
 const {act} = require(`${hostNodeModulesPath}/react-dom/test-utils`);
 
-const findModulesWithComponents = (searchPath): Promise<LoadedModule[]> =>
+const findModulesWithComponents = (searchPath: string): Promise<LoadedModule[]> =>
   new Promise((resolve, reject) => {
     glob(
-      path.join(searchPath, "**/*.js"),
+      path.join(searchPath, "**/*.{js,jsx,ts,tsx}"),
       {
         ignore: '**/*.test.js'
       },
       (err, files) => {
-        console.log(`js files found: ${files}`);
+        console.log(`js/ts files found: ${files}`);
 
         if (err) {
           return reject(err)
@@ -44,13 +43,14 @@ const findModulesWithComponents = (searchPath): Promise<LoadedModule[]> =>
 
 const compileModuleWithHostWebpack = (modulePath: string): Promise<[string, string]> => {
   const craWebpackConfig = require(`${hostNodeModulesPath}/react-scripts/config/webpack.config`)(process.env.NODE_ENV);
+  const outputModulePath = modulePath.replace(/\.[^.]+$/, '.js');
 
   return new Promise((resolve, reject) =>
     webpack({
       ...craWebpackConfig,
       entry: [path.resolve(modulePath)],
       output: {
-        filename: modulePath,
+        filename: outputModulePath,
         libraryTarget: 'umd'
       },
       optimization: {
@@ -71,7 +71,7 @@ const compileModuleWithHostWebpack = (modulePath: string): Promise<[string, stri
         return reject(stats.toJson().errors);
       }
 
-      return resolve([stats.toJson().outputPath, modulePath]);
+      return resolve([stats.toJson().outputPath, outputModulePath]);
     })
   );
 };
@@ -106,7 +106,7 @@ const compileWrapperWithWebpack = (wrapperModulePath: string,): Promise<string> 
 
       return resolve(path.resolve(path.join(stats.toJson().outputPath, path.basename(wrapperModulePath))));
     })
-  ).then((wrapperModulePath) => new Promise((resolve, reject) =>
+  ).then((wrapperModulePath: string) => new Promise((resolve, reject) =>
     fs.readFile(wrapperModulePath, function (err, data) {
       if (err) {
         return reject(err);
@@ -151,7 +151,7 @@ const compileWrapperAndModuleWithWebpack = (wrapperModulePath: string, modulePat
 
       return resolve(path.resolve(path.join(stats.toJson().outputPath, path.basename(wrapperModulePath), moduleFilename)));
     })
-  ).then((wrapperModulePath) => new Promise((resolve, reject) =>
+  ).then((wrapperModulePath: string) => new Promise((resolve, reject) =>
     fs.readFile(wrapperModulePath, function (err, data) {
       if (err) {
         return reject(err);
@@ -580,64 +580,23 @@ const runComponentTest = (file, exportName, testId, step): Promise<ResultsAndCon
     )
   ).then(([results, context]) => [results, context.close() || context]);
 
-const valueMap = {
-  'an array': 'array',
-  'a ReactNode': 'ReactNode',
-  'a single ReactElement': 'ReactElement',
-  'a single ReactElement type': 'ReactElement type',
-};
-
-const parsePropTypeMessage = (message, defaultType) => {
-  let result;
-  if (!message) {
-    return defaultType;
+const getComponentPropTypes = (modulePath, exportName) => {
+  if (/tsx?$/.test(modulePath)) {
+    return getTsPropTypes(modulePath, exportName, require(`${hostNodeModulesPath}/react-scripts/config/paths`).appTsConfig);
   }
 
-  const primitivePattern = /expected `?([a-zA-Z ]+)/g;
-  if (message.message.match(primitivePattern)) {
-    const r = primitivePattern.exec(message.message);
-    result = r ? r[1] : null;
-  }
-
-  const oneOfPattern = /expected one of (\[.*])/g;
-  if (message.message.match(oneOfPattern)) {
-    const r = oneOfPattern.exec(message.message);
-    result = r ? `oneOf:${r[1]}` : null;
-  }
-
-  const instanceOfPattern = /expected instance of `(.*)`/g;
-  if (message.message.match(instanceOfPattern)) {
-    const r = instanceOfPattern.exec(message.message);
-    result = r ? `instanceOf:${r[1]}` : null;
-  }
-
-  return valueMap[result] || result;
-};
-
-const inferPropTypes = (propTypes) =>
-  Object.keys(propTypes)
-    .reduce(
-      (prev , curr) =>
-        ({
-          ...prev,
-          [curr]: [
-            parsePropTypeMessage(
-              propTypes[curr]({[curr]: {}}, curr, null, null, null, 'SECRET_DO_NOT_PASS_THIS_OR_YOU_WILL_BE_FIRED'),
-              'object'
-            ),
-            propTypes[curr]({[curr]: undefined}, curr, null, null, null, 'SECRET_DO_NOT_PASS_THIS_OR_YOU_WILL_BE_FIRED') !== null
-          ]
-        }),
-      {});
-
-module.exports.inferPropTypes = inferPropTypes;
-
-const getComponentPropTypes = (modulePath, exportName) =>
-  compileModuleWithHostWebpack(modulePath)
-    .then(([moduleOutputPath, moduleFilename]) => {
-      const component = require(path.join(moduleOutputPath, moduleFilename))[exportName];
-      return component.propTypes ? inferPropTypes(component.propTypes) : {};
+  return compileModuleWithHostWebpack(modulePath)
+    .then(([moduleOutputPath, moduleFilename]) =>
+      compileWrapperAndModuleWithWebpack(require.resolve("./getComponentPropTypes"), moduleOutputPath, moduleFilename)
+    )
+    .then((moduleCode) => {
+      const context = createDOM().getInternalVMContext();
+      const script = new Script(moduleCode);
+      context.exportName = exportName;
+      script.runInContext(context);
+      return context.result;
     });
+};
 
 const app = express();
 const PORT = 9010;
@@ -658,7 +617,7 @@ app.get(
 app.get(
   '/test',
   (req, res) =>
-    getComponentTests(path.join(SEARCH_PATH, req.query.file), req.query.exportName)
+    getComponentTests(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName)
       .then(
         test => res.send(test)
       )
@@ -667,7 +626,7 @@ app.get(
 app.get(
   '/test/status',
   (req, res) =>
-    getComponentTestStatuses(path.join(SEARCH_PATH, req.query.file), req.query.exportName)
+    getComponentTestStatuses(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName)
       .then(
         statuses => res.send(statuses)
       )
@@ -676,7 +635,7 @@ app.get(
 app.get(
   '/test/:testId',
   (req, res) =>
-    getComponentTest(path.join(SEARCH_PATH, req.query.file), req.query.exportName, req.params.testId)
+    getComponentTest(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName, req.params.testId)
       .then(
         test => res.send(test)
       )
@@ -685,7 +644,7 @@ app.get(
 app.post(
   '/test',
   (req, res) =>
-    createTest(path.join(SEARCH_PATH, req.query.file), req.query.exportName)
+    createTest(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName)
       .then(
         test => res.send(test)
       )
@@ -694,7 +653,7 @@ app.post(
 app.put(
   '/test/:testId/steps',
   (req, res) =>
-    updateTestSteps(path.join(SEARCH_PATH, req.query.file), req.query.exportName, req.params.testId, req.body)
+    updateTestSteps(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName, req.params.testId, req.body)
       .then(
         test => res.send(test)
       )
@@ -703,7 +662,7 @@ app.put(
 app.get(
   '/test/:testId/render/side-effects',
   (req, res) =>
-    renderComponentSideEffects(path.join(SEARCH_PATH, req.query.file), req.query.exportName, req.params.testId, req.query.step)
+    renderComponentSideEffects(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName, req.params.testId, req.query.step)
       .then(
         test => res.send(test)
       )
@@ -712,7 +671,7 @@ app.get(
 app.get(
   '/test/:testId/run',
   (req, res, next) =>
-    runComponentTest(path.join(SEARCH_PATH, req.query.file), req.query.exportName, req.params.testId, req.query.step)
+    runComponentTest(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName, req.params.testId, req.query.step)
       .then(
         ([results]) => res.send(
           results.map(
@@ -734,7 +693,7 @@ app.get(
 app.get(
   '/component/propTypes',
   (req, res, next) =>
-    getComponentPropTypes(path.join(SEARCH_PATH, req.query.file), req.query.exportName)
+    getComponentPropTypes(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName)
       .then(
         (propTypes) => res.send(propTypes)
       )

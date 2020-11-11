@@ -45,6 +45,10 @@ export default function Components() {
       .finally(() => setIsLoading(false))
   }, []);
 
+  if (isLoading) {
+    return <LoadingIndicator>Searching for components...</LoadingIndicator>
+  }
+
   return (
     <div className="p-3">
       {files.map(
@@ -52,7 +56,6 @@ export default function Components() {
           <Module file={f.file} components={f.components} key={f.file} />
         )
       )}
-      {isLoading && <LoadingIndicator>Searching for components...</LoadingIndicator>}
       {
         (!isLoading && !files.length) && <div>No Components were found</div>
       }

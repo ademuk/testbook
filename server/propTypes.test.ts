@@ -1,5 +1,5 @@
 const PropTypes = require("prop-types");
-const {inferPropTypes} = require("./server");
+const {inferPropTypes} = require("./propTypes");
 
 describe('server', () => {
 
@@ -13,13 +13,13 @@ describe('server', () => {
     [PropTypes.object, 'object'],
     [PropTypes.string, 'string'],
     [PropTypes.symbol, 'symbol'],
-    [PropTypes.node, 'ReactNode'],
+    [PropTypes.node, 'React.ReactNode'],
 
     // A React element.
-    [PropTypes.element, 'ReactElement'],
+    [PropTypes.element, 'React.ReactElement'],
 
     // A React element type (ie. MyComponent).
-    [PropTypes.elementType, 'ReactElement type'],
+    [PropTypes.elementType, 'React.ComponentType'],
     [PropTypes.instanceOf(Message), 'instanceOf:Message'],
     [PropTypes.oneOf( ['News', 'Photos']), 'oneOf:["News","Photos"]'],
 

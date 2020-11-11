@@ -7,7 +7,9 @@ import {setupMocks} from "./mocks";
 import * as m from 'module';
 
 declare global {
-  interface Window { result: any; }
+  interface Window {
+    result: any;
+  }
 }
 
 setupMocks();

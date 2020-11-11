@@ -2,6 +2,7 @@ import React, {useEffect, useState} from "react";
 import {renderStepLabel} from "./Step";
 import Modal, {ModalBody, ModalFooter, ModalHeader} from "../Modal";
 import type {EditStepProps} from './EditMockModal';
+import LoadingIndicator from "../LoadingIndicator";
 
 const JSON_PROP_TYPES = ['object', 'array'];
 
@@ -26,11 +27,24 @@ const PROP_TYPE_INPUT_COMPONENTS: {[key: string]: React.FC<InputProps>} = {
   ),
   object: (props) => <textarea {...props} />,
   array: (props) => <textarea {...props} />,
-  default: (props) => <input type="text" {...props} />
+  default: (props) => <input type="text" {...props} />,
+  '[]$': (props) => <textarea {...props} />,
+  '^{': (props) => <textarea {...props} />,
+};
+
+const findPropTypeInputComponent = (propType: string) => {
+  if (propType in PROP_TYPE_INPUT_COMPONENTS) {
+    return PROP_TYPE_INPUT_COMPONENTS[propType];
+  }
+
+  const match = Object.keys(PROP_TYPE_INPUT_COMPONENTS)
+    .find((k) => new RegExp(k).test(propType));
+
+  return match ? PROP_TYPE_INPUT_COMPONENTS[match] : PROP_TYPE_INPUT_COMPONENTS.default;
 };
 
 const PropInput = ({propType, ...rest}: {propType: string} & InputProps) => {
-  const Component:React.FC<InputProps> = PROP_TYPE_INPUT_COMPONENTS[propType] || PROP_TYPE_INPUT_COMPONENTS.default;
+  const Component:React.FC<InputProps> = findPropTypeInputComponent(propType);
   return <Component {...rest} />;
 };
 
@@ -130,16 +144,23 @@ const deserialiseProp = (value: string, propType: string) => {
   return value;
 };
 
+type PropTypesStatus = 'loading' | 'error' | 'loaded';
+
 const EditRenderPropsModal: React.FC<EditStepProps> = ({step, onClose, onUpdateStep, file, exportName}) => {
   const [propTypes, setPropTypes] = useState<PropTypes>();
+  const [propTypesStatus, setPropTypesStatus] = useState<PropTypesStatus>();
   const [props, setProps] = useState<Props>();
   const [propsValidation, setPropsValidation] = useState<{[key: string]: boolean}>({});
   const [isFormDirty, setIsFormDirty] = useState(false);
 
   useEffect(() => {
+    setPropTypesStatus('loading');
+
     fetch(`/component/propTypes?file=${file}&exportName=${exportName}`)
       .then(res => res.json())
       .then(setPropTypes)
+      .then(() => setPropTypesStatus('loaded'))
+      .catch(() => setPropTypesStatus('error'))
   }, [file, exportName]);
 
   useEffect(() => {
@@ -177,6 +198,8 @@ const EditRenderPropsModal: React.FC<EditStepProps> = ({step, onClose, onUpdateS
           </ModalHeader>
 
           <div className="mt-2">
+            {propTypesStatus === 'loading' && <LoadingIndicator>Searching for component prop types...</LoadingIndicator>}
+            {propTypesStatus === 'error' && <div className="text-red-700">There was an issue fetching this component's prop types</div>}
             {
               propTypes ? Object.entries(propTypes)
                 .map(([propName, [propType, required]]) =>
