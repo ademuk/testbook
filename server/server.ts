@@ -11,8 +11,8 @@ import {JSDOM, VirtualConsole} from 'jsdom';
 import webpack from "webpack";
 import {getTsPropTypes} from "./propTypes";
 
-const hostNodeModulesPath = `${process.cwd()}/node_modules`;
-const {act} = require(`${hostNodeModulesPath}/react-dom/test-utils`);
+const hostNodeModulesPath = path.join(process.cwd(), 'node_modules');
+const {act} = require(path.join(hostNodeModulesPath, 'react-dom/test-utils'));
 
 const findModulesWithComponents = (searchPath: string): Promise<LoadedModule[]> =>
   new Promise((resolve, reject) => {
@@ -42,7 +42,7 @@ const findModulesWithComponents = (searchPath: string): Promise<LoadedModule[]> 
   });
 
 const compileModuleWithHostWebpack = (modulePath: string): Promise<[string, string]> => {
-  const craWebpackConfig = require(`${hostNodeModulesPath}/react-scripts/config/webpack.config`)(process.env.NODE_ENV);
+  const craWebpackConfig = require(path.join(hostNodeModulesPath, 'react-scripts/config/webpack.config'))(process.env.NODE_ENV);
   const outputModulePath = modulePath.replace(/\.[^.]+$/, '.js');
 
   return new Promise((resolve, reject) =>
@@ -136,8 +136,8 @@ const compileWrapperAndModuleWithWebpack = (wrapperModulePath: string, modulePat
         extensions: [ '.tsx', '.ts', '.js' ],
         alias: {
           module: modulePath && path.resolve(path.join(modulePath, moduleFilename)),
-          react: `${hostNodeModulesPath}/react`,
-          "react-dom": `${hostNodeModulesPath}/react-dom`,
+          react: path.join(hostNodeModulesPath, 'react'),
+          "react-dom": path.join(hostNodeModulesPath, 'react-dom')
         }
       },
     }, (err, stats) => {
@@ -582,7 +582,7 @@ const runComponentTest = (file, exportName, testId, step): Promise<ResultsAndCon
 
 const getComponentPropTypes = (modulePath, exportName) => {
   if (/tsx?$/.test(modulePath)) {
-    return getTsPropTypes(modulePath, exportName, require(`${hostNodeModulesPath}/react-scripts/config/paths`).appTsConfig);
+    return getTsPropTypes(modulePath, exportName, require(path.join(hostNodeModulesPath, 'react-scripts/config/paths')).appTsConfig);
   }
 
   return compileModuleWithHostWebpack(modulePath)
