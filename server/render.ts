@@ -49,8 +49,7 @@ window.result = new Promise((resolve, reject) =>
         null,
         React.createElement(
           Component,
-          window.props,
-          null
+          window.props
         )
       ),
       window.container,

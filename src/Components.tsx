@@ -35,30 +35,47 @@ const Module = ({file, components}: ModuleProps) => (
 );
 
 export default function Components() {
-  const [files, setFiles] = useState<ModuleProps[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [moduleTests, setModuleTests] = useState<ModuleProps[]>([]);
+  const [modules, setModules] = useState<ModuleProps[]>([]);
+  const [areTestsLoading, setAreTestsLoading] = useState(true);
+  const [isSearchingForComponents, setIsSearchingForComponents] = useState(true);
 
   useEffect(() => {
-    fetch('/component')
+    fetch('/module-component')
       .then(res => res.json())
-      .then(setFiles)
-      .finally(() => setIsLoading(false))
+      .then(setModules)
+      .finally(() => setIsSearchingForComponents(false))
   }, []);
 
-  if (isLoading) {
-    return <LoadingIndicator>Searching for components...</LoadingIndicator>
+  useEffect(() => {
+    fetch('/module-test')
+      .then(res => res.json())
+      .then(setModuleTests)
+      .finally(() => setAreTestsLoading(false))
+  }, []);
+
+  if (areTestsLoading) {
+    return <LoadingIndicator>Loading component tests...</LoadingIndicator>
   }
 
   return (
     <div className="p-3">
-      {files.map(
+      <div className="p-6 block text-gray-700 text-lg font-semibold py-2">Your tests</div>
+      {moduleTests.map(
         f => (
           <Module file={f.file} components={f.components} key={f.file} />
         )
       )}
       {
-        (!isLoading && !files.length) && <div>No Components were found</div>
+        (!areTestsLoading && !moduleTests.length) && <div className="p-6">You don't have any tests yet</div>
       }
+      {isSearchingForComponents && <div className="p-6"><LoadingIndicator>Looking for components...</LoadingIndicator></div>}
+      {!!modules.length && <div className="p-6 block text-gray-700 text-lg font-semibold py-2">Other components in your project</div>}
+      {modules.map(
+        m => (
+          <Module file={m.file} components={m.components} key={m.file} />
+        )
+      )}
     </div>
   )
 }

@@ -14,6 +14,13 @@ import {getTsPropTypes} from "./propTypes";
 const hostNodeModulesPath = path.join(process.cwd(), 'node_modules');
 const {act} = require(path.join(hostNodeModulesPath, 'react-dom/test-utils'));
 
+const serialiseError = (error) => ({
+  name: error.name,
+  message: error.message,
+  stack: error.stack,
+  componentStack: error instanceof RenderError ? error.componentStack : undefined,
+});
+
 const findModulesWithComponents = (searchPath: string): Promise<LoadedModule[]> =>
   new Promise((resolve, reject) => {
     glob(
@@ -33,7 +40,15 @@ const findModulesWithComponents = (searchPath: string): Promise<LoadedModule[]> 
             m.filter(m => !m.error && m.components.length)
               .map(
                 (m) =>
-                  ({...m, file: m.file.replace(new RegExp(`^src${path.sep}`), '')})
+                  ({
+                    ...m,
+                    components: m.components
+                      .map((c) => ({
+                        ...c,
+                        ...c.error && {error: serialiseError(c.error)}
+                      })),
+                    file: m.file.replace(new RegExp(`^src${path.sep}`), '')
+                  })
               )
           )
           .then(resolve)
@@ -181,12 +196,13 @@ type ComponentDefinition = {
 export type LoadedComponent = {
   name: string;
   exportName;
+  error?: {[key: string]: any}
 }
 
 type LoadedModule = {
   file: string;
   components: LoadedComponent[];
-  error?: string
+  error?: Error
 }
 
 const loadModuleWithComponents = (modulePath) : Promise<LoadedModule> =>
@@ -195,6 +211,8 @@ const loadModuleWithComponents = (modulePath) : Promise<LoadedModule> =>
       compileWrapperAndModuleWithWebpack(require.resolve("./findComponentsInModule"), outputPath, filename)
     )
     .then((moduleCode: string) => {
+      console.log(`Loading ${modulePath}`);
+
       const script = new Script(moduleCode);
       const context = createDOM().getInternalVMContext();
       script.runInContext(context);
@@ -203,7 +221,12 @@ const loadModuleWithComponents = (modulePath) : Promise<LoadedModule> =>
       return {
         file: modulePath,
         components: context.result && context.result
-          .map((exportName) => ({exportName, name: getExportComponentName(exportName, modulePath)}))
+          .filter(([exportName, isComponent, error]) => isComponent || error)
+          .map(([exportName, isComponent, error]) => ({
+            exportName,
+            name: getExportComponentName(exportName, modulePath),
+            ...error && {error}
+          }))
           .sort(
             (a, b) =>
               b.exportName === 'default' ? 1: -1
@@ -236,7 +259,7 @@ const getExportComponentName = (exportName, filePath) => {
 };
 
 const getComponent = (file, exportName): Promise<ComponentDefinition> =>
-  getFile(file)
+  getTestFile(file)
     .then(f => f.components.find(c => c.name === exportName));
 
 const getComponentTests = (file, exportName): Promise<TestDefinition[]> =>
@@ -267,7 +290,7 @@ const getComponentTest = (file, exportName, testId) =>
     .then(t => t.find(t => t.id === testId));
 
 const getOrCreateFileJson = (file): Promise<LoadedFile> =>
-  getFile(file)
+  getTestFile(file)
     .catch(() => ({
       components: []
     }));
@@ -278,10 +301,13 @@ type LoadedFile = {
 
 const getFile = (file): Promise<LoadedFile> =>
   new Promise((resolve, reject) =>
-    fs.readFile(`${file}.tests.json`, 'utf8', (err, data) =>
-      err ? reject() : resolve(JSON.parse(data))
+    fs.readFile(file, 'utf8', (err, data) =>
+      err ? reject(err) : resolve(JSON.parse(data))
     )
   );
+
+const getTestFile = (file): Promise<LoadedFile> =>
+  getFile(`${file}.tests.json`);
 
 const writeFile = (file, payload) =>
   new Promise((resolve, reject) =>
@@ -293,14 +319,6 @@ const writeFile = (file, payload) =>
       }
     )
   );
-
-const createDOM = () =>
-  new JSDOM('<!doctype html><html lang="en-GB"><body /></html>', {
-    pretendToBeVisual: true,
-    runScripts: 'dangerously',
-    url: 'http://localhost',
-    virtualConsole: new VirtualConsole().sendTo(console)
-  });
 
 const getOrCreateComponent = (fileJson: LoadedFile, exportName) => {
   const component = fileJson.components.find(c => c.name === exportName);
@@ -372,7 +390,7 @@ const fileJsonWithUpdatedComponent = (fileJson, exportName, testId, steps) => ({
 });
 
 const updateTestSteps = (file, exportName, testId, steps) =>
-  getFile(file)
+  getTestFile(file)
     .then(fileJson => {
       const payload = fileJsonWithUpdatedComponent(fileJson, exportName, testId, steps);
       return new Promise((resolve, reject) => {
@@ -412,6 +430,14 @@ class AssertionError extends Error {
     this.name = 'AssertionError';
   }
 }
+
+const createDOM = () =>
+  new JSDOM('<!doctype html><html lang="en-GB"><body /></html>', {
+    pretendToBeVisual: true,
+    runScripts: 'dangerously',
+    url: 'http://localhost',
+    virtualConsole: new VirtualConsole().sendTo(console)
+  });
 
 const render = (file, exportName, props, context) =>
   compileModuleWithHostWebpack(file)
@@ -598,6 +624,36 @@ const getComponentPropTypes = (modulePath, exportName) => {
     });
 };
 
+const loadModuleTests = (file) =>
+  getFile(file)
+    .then((f) => [file, f]);
+
+const findModuleTests = (searchPath: string): Promise<LoadedModule[]> =>
+  new Promise((resolve, reject) => {
+    glob(
+      path.join(searchPath, "**/*.tests.json"),
+      null,
+      (err, files) => {
+        console.log(`Test files found: ${files}`);
+
+        if (err) {
+          return reject(err)
+        }
+
+        Promise.all(files.map(loadModuleTests))
+          .then((files) => files.map(([fileName, file]) => ({
+            file: fileName.replace(/\.tests\.json$/, '').replace(new RegExp(`^src${path.sep}`), ''),
+            components: file.components.map(({name}) => ({
+              exportName: name,
+              name: getExportComponentName(name, fileName).replace(/\.tests$/, '')
+            }))
+          })))
+          .then(resolve)
+          .catch(reject)
+      }
+    );
+  });
+
 const app = express();
 const PORT = 9010;
 
@@ -606,7 +662,17 @@ app.use(express.json());
 const SEARCH_PATH = './src';
 
 app.get(
-  '/component',
+  '/module-test',
+  (req, res, next) =>
+    findModuleTests(SEARCH_PATH)
+      .then(
+        modulesWithComponents => res.send(modulesWithComponents)
+      )
+      .catch(next)
+);
+
+app.get(
+  '/module-component',
   (req, res) =>
     findModulesWithComponents(SEARCH_PATH)
       .then(
@@ -675,23 +741,15 @@ app.get(
       .then(
         ([results]) => res.send(
           results.map(
-            ({result}) => (result instanceof Error ? {
-                result: 'error',
-                error: {
-                  name: result.name,
-                  message: result.message,
-                  stack: result.stack,
-                  componentStack: result instanceof RenderError ? result.componentStack : undefined,
-                }
-              } : {result})
-            )
+            ({result}) => (result instanceof Error ? {result: 'error', error: serialiseError(result)} : {result})
+          )
         )
       )
       .catch(next)
 );
 
 app.get(
-  '/component/propTypes',
+  '/component/prop-types',
   (req, res, next) =>
     getComponentPropTypes(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName)
       .then(

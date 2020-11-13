@@ -74,9 +74,9 @@ type PropTypes = {[key: string]: [string, boolean]}
 type Props = {[key: string]: any}
 
 const validateProps = (props: Props, propTypes: PropTypes) =>
-  Object.entries(props).reduce((prev, [propName, value]) => ({
+  Object.entries(propTypes).reduce((prev, [propName, propType]) => ({
     ...prev,
-    [propName]: isValidProp(value, ...propTypes[propName])
+    [propName]: isValidProp(props[propName], ...propType)
   }), {});
 
 const serialiseProps = (props: Props, propTypes: PropTypes) =>
@@ -156,7 +156,7 @@ const EditRenderPropsModal: React.FC<EditStepProps> = ({step, onClose, onUpdateS
   useEffect(() => {
     setPropTypesStatus('loading');
 
-    fetch(`/component/propTypes?file=${file}&exportName=${exportName}`)
+    fetch(`/component/prop-types?file=${file}&exportName=${exportName}`)
       .then(res => res.json())
       .then(setPropTypes)
       .then(() => setPropTypesStatus('loaded'))
@@ -198,7 +198,7 @@ const EditRenderPropsModal: React.FC<EditStepProps> = ({step, onClose, onUpdateS
           </ModalHeader>
 
           <div className="mt-2">
-            {propTypesStatus === 'loading' && <LoadingIndicator>Searching for component prop types...</LoadingIndicator>}
+            {propTypesStatus === 'loading' && <LoadingIndicator>Looking for component prop types...</LoadingIndicator>}
             {propTypesStatus === 'error' && <div className="text-red-700">There was an issue fetching this component's prop types</div>}
             {
               propTypes ? Object.entries(propTypes)
