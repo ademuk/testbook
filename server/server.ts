@@ -102,13 +102,20 @@ const compileWrapperWithWebpack = (wrapperModulePath: string,): Promise<string> 
         rules: [
           {
             test: /\.tsx?$/,
-            use: require.resolve('ts-loader'),
+            use: [
+              {
+                loader: 'ts-loader',
+                options: {
+                  happyPackMode: true
+                }
+              }
+            ],
             exclude: /node_modules/,
           },
         ],
       },
       resolve: {
-        extensions: [ '.tsx', '.ts', '.js' ],
+        extensions: ['.tsx', '.ts', '.js'],
       },
     }, (err, stats) => {
       if (err) {
@@ -142,13 +149,20 @@ const compileWrapperAndModuleWithWebpack = (wrapperModulePath: string, modulePat
         rules: [
           {
             test: /\.tsx?$/,
-            use: require.resolve('ts-loader'),
+            use: [
+              {
+                loader: 'ts-loader',
+                options: {
+                  happyPackMode: true
+                }
+              }
+            ],
             exclude: /node_modules/,
           },
         ],
       },
       resolve: {
-        extensions: [ '.tsx', '.ts', '.js' ],
+        extensions: ['.tsx', '.ts', '.js'],
         alias: {
           module: modulePath && path.resolve(path.join(modulePath, moduleFilename)),
           react: path.join(hostNodeModulesPath, 'react'),
