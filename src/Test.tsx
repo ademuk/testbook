@@ -29,7 +29,7 @@ const labelMap: { [key: string]: string } = {
 const label = (text: string) =>
   labelMap[text] ? labelMap[text] : capitalise(text);
 
-type TestDefinition = {
+export type TestDefinition = {
   id: string;
   steps: StepDefinition[];
 };

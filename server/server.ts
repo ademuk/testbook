@@ -21,6 +21,37 @@ const serialiseError = (error) => ({
   componentStack: error instanceof RenderError ? error.componentStack : undefined,
 });
 
+const loadModuleTests = (file) =>
+  getFile(file)
+    .then((f) => [file, f]);
+
+const findModuleTests = (searchPath: string): Promise<LoadedModule[]> =>
+  new Promise((resolve, reject) => {
+    glob(
+      path.join(searchPath, "**/*.tests.json"),
+      null,
+      (err, files) => {
+        console.log(`Test files found: ${files}`);
+
+        if (err) {
+          return reject(err)
+        }
+
+        Promise.all(files.map(loadModuleTests))
+          .then((files) => files.map(([fileName, file]) => ({
+            file: fileName.replace(/\.tests\.json$/, '').replace(new RegExp(`^src${path.sep}`), ''),
+            components: file.components.map((c) => ({
+              ...c,
+              exportName: c.name,
+              name: getExportComponentName(c.name, fileName).replace(/\.tests$/, '')
+            }))
+          })))
+          .then(resolve)
+          .catch(reject)
+      }
+    );
+  });
+
 const findModulesWithComponents = (searchPath: string): Promise<LoadedModule[]> =>
   new Promise((resolve, reject) => {
     glob(
@@ -637,36 +668,6 @@ const getComponentPropTypes = (modulePath, exportName) => {
       return context.result;
     });
 };
-
-const loadModuleTests = (file) =>
-  getFile(file)
-    .then((f) => [file, f]);
-
-const findModuleTests = (searchPath: string): Promise<LoadedModule[]> =>
-  new Promise((resolve, reject) => {
-    glob(
-      path.join(searchPath, "**/*.tests.json"),
-      null,
-      (err, files) => {
-        console.log(`Test files found: ${files}`);
-
-        if (err) {
-          return reject(err)
-        }
-
-        Promise.all(files.map(loadModuleTests))
-          .then((files) => files.map(([fileName, file]) => ({
-            file: fileName.replace(/\.tests\.json$/, '').replace(new RegExp(`^src${path.sep}`), ''),
-            components: file.components.map(({name}) => ({
-              exportName: name,
-              name: getExportComponentName(name, fileName).replace(/\.tests$/, '')
-            }))
-          })))
-          .then(resolve)
-          .catch(reject)
-      }
-    );
-  });
 
 const app = express();
 const PORT = 9010;
