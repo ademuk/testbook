@@ -43,7 +43,7 @@ const findModuleTests = (searchPath: string): Promise<LoadedModule[]> =>
             components: file.components.map((c) => ({
               ...c,
               exportName: c.name,
-              name: getExportComponentName(c.name, fileName).replace(/\.tests$/, '')
+              name: getExportComponentName(c.name, fileName).replace(/\.(.+)\.tests$/, '')
             }))
           })))
           .then(resolve)
@@ -87,7 +87,60 @@ const findModulesWithComponents = (searchPath: string): Promise<LoadedModule[]> 
     );
   });
 
-const compileModuleWithHostWebpack = (modulePath: string): Promise<[string, string]> => {
+const loadModuleWithComponents = (modulePath) : Promise<LoadedModule> =>
+  compileModuleWithHostWebpack(modulePath)
+    .then(([outputPath, filename]) =>
+      compileWrapperAndModuleWithWebpack(require.resolve("./findComponentsInModule"), outputPath, filename)
+    )
+    .then((moduleCode: string) => {
+      console.log(`Loading ${modulePath}`);
+
+      const script = new Script(moduleCode);
+      const context = createDOM().getInternalVMContext();
+      script.runInContext(context);
+      context.close();
+
+      return {
+        file: modulePath,
+        components: context.result && context.result
+          .filter(([, isComponent, error]) => isComponent || error)
+          .map(([exportName, , error]) => ({
+            exportName,
+            name: getExportComponentName(exportName, modulePath),
+            ...error && {error}
+          }))
+          .sort(
+            (a, b) =>
+              b.exportName === 'default' ? 1: -1
+          )
+      };
+    })
+    .catch((error) => {
+      console.log(`Load failed ${error}`);
+
+      return {
+        file: modulePath,
+        components: [],
+        error
+      };
+    });
+
+
+const getExportComponentName = (exportName, filePath) => {
+  if (exportName === 'default') {
+    const fileName = path.parse(filePath).name;
+
+    if (fileName === 'index') {
+      return path.basename(path.dirname(filePath));
+    }
+
+    return fileName
+  }
+
+  return exportName;
+};
+
+const compileModuleWithHostWebpack = (modulePath: string, externals: {[key: string]: string} = null): Promise<[string, string]> => {
   const craWebpackConfig = require(path.join(hostNodeModulesPath, 'react-scripts/config/webpack.config'))(process.env.NODE_ENV);
   const outputModulePath = modulePath.replace(/\.[^.]+$/, '.js');
 
@@ -107,6 +160,7 @@ const compileModuleWithHostWebpack = (modulePath: string): Promise<[string, stri
       externals: {
         react: 'react',
         "react-dom": 'react-dom',
+        ...externals
       }
     }, (err, stats) => {
       if (err) {
@@ -122,7 +176,7 @@ const compileModuleWithHostWebpack = (modulePath: string): Promise<[string, stri
   );
 };
 
-const compileWrapperWithWebpack = (wrapperModulePath: string,): Promise<string> =>
+const compileWrapperWithWebpack = (wrapperModulePath: string): Promise<string> =>
   new Promise((resolve, reject) =>
     webpack({
       entry: [wrapperModulePath],
@@ -168,14 +222,16 @@ const compileWrapperWithWebpack = (wrapperModulePath: string,): Promise<string> 
     })
   ));
 
-const compileWrapperAndModuleWithWebpack = (wrapperModulePath: string, modulePath: string, moduleFilename: string): Promise<string> =>
+const compileWrapperAndModuleWithWebpack = (wrapperModulePath: string, modulePath: string, moduleFilename: string, aliases: {[key: string]: string} = null): Promise<string> =>
   new Promise((resolve, reject) =>
     webpack({
-      entry: [wrapperModulePath],
+      entry: [
+        wrapperModulePath,
+      ],
       output: {
         filename: path.join(path.basename(wrapperModulePath), moduleFilename),
       },
-      mode: 'development',
+      mode: "development",
       module: {
         rules: [
           {
@@ -197,7 +253,8 @@ const compileWrapperAndModuleWithWebpack = (wrapperModulePath: string, modulePat
         alias: {
           module: modulePath && path.resolve(path.join(modulePath, moduleFilename)),
           react: path.join(hostNodeModulesPath, 'react'),
-          "react-dom": path.join(hostNodeModulesPath, 'react-dom')
+          "react-dom": path.join(hostNodeModulesPath, 'react-dom'),
+          ...aliases
         }
       },
     }, (err, stats) => {
@@ -238,6 +295,12 @@ type ComponentDefinition = {
   tests: TestDefinition[];
 }
 
+type WrapperDefinition = {
+  file: string;
+  exportName: string;
+  props?: {[key: string]: any};
+}
+
 export type LoadedComponent = {
   name: string;
   exportName;
@@ -249,59 +312,6 @@ type LoadedModule = {
   components: LoadedComponent[];
   error?: Error
 }
-
-const loadModuleWithComponents = (modulePath) : Promise<LoadedModule> =>
-  compileModuleWithHostWebpack(modulePath)
-    .then(([outputPath, filename]) =>
-      compileWrapperAndModuleWithWebpack(require.resolve("./findComponentsInModule"), outputPath, filename)
-    )
-    .then((moduleCode: string) => {
-      console.log(`Loading ${modulePath}`);
-
-      const script = new Script(moduleCode);
-      const context = createDOM().getInternalVMContext();
-      script.runInContext(context);
-      context.close();
-
-      return {
-        file: modulePath,
-        components: context.result && context.result
-          .filter(([exportName, isComponent, error]) => isComponent || error)
-          .map(([exportName, isComponent, error]) => ({
-            exportName,
-            name: getExportComponentName(exportName, modulePath),
-            ...error && {error}
-          }))
-          .sort(
-            (a, b) =>
-              b.exportName === 'default' ? 1: -1
-          )
-      };
-    })
-    .catch((error) => {
-      console.log(`Load failed ${error}`);
-
-      return {
-        file: modulePath,
-        components: [],
-        error
-      };
-    });
-
-
-const getExportComponentName = (exportName, filePath) => {
-  if (exportName === 'default') {
-    const fileName = path.parse(filePath).name;
-
-    if (fileName === 'index') {
-      return path.basename(path.dirname(filePath));
-    }
-
-    return fileName
-  }
-
-  return exportName;
-};
 
 const getComponent = (file, exportName): Promise<ComponentDefinition> =>
   getTestFile(file)
@@ -484,23 +494,33 @@ const createDOM = () =>
     virtualConsole: new VirtualConsole().sendTo(console)
   });
 
-const render = (file, exportName, props, context) =>
-  compileModuleWithHostWebpack(file)
+const render = (file, exportName, props, context, wrapper?: WrapperDefinition) =>
+  compileModuleWithHostWebpack(file, wrapper ? {[wrapper.file]: wrapper.file} : null)
     .then(([moduleOutputPath, moduleFilename]) =>
-      compileWrapperAndModuleWithWebpack(require.resolve("./render"), moduleOutputPath, moduleFilename)
+      compileWrapperAndModuleWithWebpack(
+        require.resolve("./render"),
+        moduleOutputPath,
+        moduleFilename,
+        {
+          wrapper: wrapper ? path.join(hostNodeModulesPath, wrapper.file) : require.resolve('./noop'),
+          ...wrapper ? {[wrapper.file]: path.join(hostNodeModulesPath, wrapper.file)} : null
+        }
+      )
     )
     .then((moduleCode) => {
       const script = new Script(moduleCode);
       context.exportName = exportName;
       context.props = props;
+      context.wrapperExportName = wrapper && wrapper.exportName;
+      context.wrapperProps = wrapper && wrapper.props;
       script.runInContext(context);
       return context.result;
-    }).catch(([errorException, {componentStack}]) => {
+    }).catch(([errorException, componentError]) => {
       throw new RenderError(
         errorException.name,
         errorException.message,
         errorException.stack,
-        componentStack
+        componentError && componentError.componentStack
       );
     });
 
@@ -543,8 +563,8 @@ const renderComponentSideEffects = (file, exportName, testId, step) =>
       };
     });
 
-const runRenderStep = (file, exportName, {definition: {props}}, context: Context): Promise<ResultAndContext> =>
-  render(file, exportName, props, context)
+const runRenderStep = (file, exportName, {definition: {props, wrapper}}, context: Context): Promise<ResultAndContext> =>
+  render(file, exportName, props, context, wrapper)
     .then(
       () => ['success', context] as ResultAndContext
     )
@@ -669,6 +689,15 @@ const getComponentPropTypes = (modulePath, exportName) => {
     });
 };
 
+const getWrapperOptions = () =>
+  Promise.resolve([
+    {
+      file: 'react-router-dom',
+      exportName: 'MemoryRouter',
+      propTypes: {}
+    }
+  ]);
+
 const app = express();
 const PORT = 9010;
 
@@ -681,72 +710,79 @@ app.get(
   (req, res, next) =>
     findModuleTests(SEARCH_PATH)
       .then(
-        modulesWithComponents => res.send(modulesWithComponents)
+        moduleComponentTests => res.send(moduleComponentTests)
       )
       .catch(next)
 );
 
 app.get(
   '/module-component',
-  (req, res) =>
+  (req, res, next) =>
     findModulesWithComponents(SEARCH_PATH)
       .then(
         modulesWithComponents => res.send(modulesWithComponents)
       )
+      .catch(next)
 );
 
 app.get(
   '/test',
-  (req, res) =>
+  (req, res, next) =>
     getComponentTests(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName)
       .then(
-        test => res.send(test)
+        tests => res.send(tests)
       )
+      .catch(next)
 );
 
 app.get(
   '/test/status',
-  (req, res) =>
+  (req, res, next) =>
     getComponentTestStatuses(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName)
       .then(
         statuses => res.send(statuses)
       )
+      .catch(next)
 );
 
 app.get(
   '/test/:testId',
-  (req, res) =>
+  (req, res, next) =>
     getComponentTest(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName, req.params.testId)
       .then(
         test => res.send(test)
       )
+      .catch(next)
 );
 
 app.post(
   '/test',
-  (req, res) =>
+  (req, res, next) =>
     createTest(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName)
       .then(
         test => res.send(test)
       )
+      .catch(next)
 );
 
 app.put(
   '/test/:testId/steps',
-  (req, res) =>
+  (req, res, next) =>
     updateTestSteps(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName, req.params.testId, req.body)
       .then(
-        test => res.send(test)
+        testSteps => res.send(testSteps)
       )
+      .catch(next)
 );
 
 app.get(
   '/test/:testId/render/side-effects',
-  (req, res) =>
+  (req, res, next) =>
     renderComponentSideEffects(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName, req.params.testId, req.query.step)
       .then(
-        test => res.send(test)
+        testSideEffects => res.send(testSideEffects)
       )
+      .catch(next)
 );
 
 app.get(
@@ -754,12 +790,11 @@ app.get(
   (req, res, next) =>
     runComponentTest(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName, req.params.testId, req.query.step)
       .then(
-        ([results]) => res.send(
-          results.map(
-            ({result}) => (result instanceof Error ? {result: 'error', error: serialiseError(result)} : {result})
-          )
+        ([results]) => results.map(
+          ({result}) => (result instanceof Error ? {result: 'error', error: serialiseError(result)} : {result})
         )
       )
+      .then((results) => res.send(results))
       .catch(next)
 );
 
@@ -769,6 +804,16 @@ app.get(
     getComponentPropTypes(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName)
       .then(
         (propTypes) => res.send(propTypes)
+      )
+      .catch(next)
+);
+
+app.get(
+  '/component/wrapper',
+  (req, res, next) =>
+    getWrapperOptions()
+      .then(
+        wrappers => res.send(wrappers)
       )
       .catch(next)
 );

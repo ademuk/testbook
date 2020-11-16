@@ -17,20 +17,7 @@ const SelectedMockCallModal = ({selectedMockCall: [name, args], onClose, onUpdat
       </ModalHeader>
     </ModalBody>
     <ModalFooter>
-      <button className="bg-blue-700 hover:bg-blue-800 text-white font-medium py-2 px-4 rounded-full my-2 mr-2"
-              onClick={() => onUpdateStep({
-                type: 'mock',
-                definition: {
-                  name,
-                  args,
-                  return: null
-                },
-              })}
-      >
-        Mock
-      </button>
-
-      <button className="bg-green-700 hover:bg-green-800 text-white font-medium py-2 px-4 rounded-full my-2 mr-2"
+      <button className="shadow-md bg-green-700 hover:bg-green-800 text-white font-medium py-2 px-4 rounded-full my-2 ml-2"
               onClick={() => onUpdateStep({
                 type: 'assertion',
                 definition: {
@@ -43,6 +30,19 @@ const SelectedMockCallModal = ({selectedMockCall: [name, args], onClose, onUpdat
               })}
       >
         Assert called
+      </button>
+
+      <button className="shadow-md bg-blue-700 hover:bg-blue-800 text-white font-medium py-2 px-4 rounded-full my-2 ml-2"
+              onClick={() => onUpdateStep({
+                type: 'mock',
+                definition: {
+                  name,
+                  args,
+                  return: null
+                },
+              })}
+      >
+        Mock
       </button>
     </ModalFooter>
   </Modal>

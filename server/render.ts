@@ -1,21 +1,23 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import {act} from "react-dom/test-utils";
-import * as m from 'module';
+import { act } from "react-dom/test-utils";
+import * as m from "module";
 
 declare global {
   interface Window {
     exportName: string;
-    props: {[key: string]: any};
-    error: [Error, {componentStack: string}];
+    props: { [key: string]: any };
+    wrapperExportName: string;
+    wrapperProps: string;
+    error: [Error, { componentStack: string }];
   }
 }
 
 const Component = m[window.exportName];
 
 type State = {
-  error: Error
-}
+  error: Error;
+};
 
 class ErrorBoundary extends React.Component<{}, State> {
   constructor(props) {
@@ -23,7 +25,7 @@ class ErrorBoundary extends React.Component<{}, State> {
 
     this.state = {
       error: null
-    }
+    };
   }
 
   static getDerivedStateFromError(error) {
@@ -41,19 +43,34 @@ class ErrorBoundary extends React.Component<{}, State> {
   }
 }
 
-window.result = new Promise((resolve, reject) =>
-  act(() => {
-    ReactDOM.render(
-      React.createElement(
-        ErrorBoundary,
-        null,
+const getWrapperComponent = () => {
+  if (window.wrapperExportName) {
+    // @ts-ignore
+    return import("wrapper").then((module) => module[window.wrapperExportName])
+  }
+
+  return Promise.resolve();
+};
+
+window.result = getWrapperComponent()
+  .then((WrapperComponent) => {
+    act(() => {
+      ReactDOM.render(
         React.createElement(
-          Component,
-          window.props
-        )
-      ),
-      window.container,
-      () => window.error ? reject(window.error) : resolve()
-    );
-  })
-);
+          ErrorBoundary,
+          null,
+          WrapperComponent ? React.createElement(
+            WrapperComponent,
+            window.wrapperProps,
+            React.createElement(Component, window.props)
+          ) : React.createElement(Component, window.props)
+        ),
+        window.container,
+        () => {
+          if (window.error) {
+            throw window.error;
+          }
+        }
+      );
+    })
+  });

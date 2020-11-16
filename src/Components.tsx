@@ -113,15 +113,18 @@ export default function Components() {
   const [testsStatus, setTestsStatus] = useState<LoadingStatus>(LoadingStatus.pending);
   const [modules, setModules] = useState<ModuleDefinition[]>([]);
   const [modulesStatus, setModulesStatus] = useState<LoadingStatus>(LoadingStatus.pending);
+  const [showOtherComponents, setShowOtherComponents] = useState(false);
 
   useEffect(() => {
-    setModulesStatus(LoadingStatus.loading);
-    fetch('/module-component')
-      .then(res => res.json())
-      .then(setModules)
-      .then(() => setModulesStatus(LoadingStatus.loaded))
-      .catch(() => setModulesStatus(LoadingStatus.error))
-  }, []);
+    if (showOtherComponents || (testsStatus === LoadingStatus.loaded && !moduleTests.length)) {
+      setModulesStatus(LoadingStatus.loading);
+      fetch('/module-component')
+        .then(res => res.json())
+        .then(setModules)
+        .then(() => setModulesStatus(LoadingStatus.loaded))
+        .catch(() => setModulesStatus(LoadingStatus.error))
+    }
+  }, [showOtherComponents, testsStatus, moduleTests]);
 
   useEffect(() => {
     setTestsStatus(LoadingStatus.loading);
@@ -160,6 +163,15 @@ export default function Components() {
           <Module file={m.file} components={m.components} key={m.file} />
         )
       )}
+      {
+        !showOtherComponents && <div className="flex justify-center">
+          <button
+            onClick={() => setShowOtherComponents(true)}
+            className="shadow-md border-blue-700 text-blue-700 bg-white hover:border-transparent hover:text-white hover:bg-blue-700 font-medium py-2 px-4 rounded-full m-4">
+            Look for other components
+          </button>
+        </div>
+      }
     </div>
   )
 }
