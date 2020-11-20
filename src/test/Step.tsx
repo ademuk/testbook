@@ -18,7 +18,7 @@ export const renderStepLabel = (step: StepDefinition) =>
   STEP_LABELS[step.type] ? STEP_LABELS[step.type](step) : defaultStepRenderer(step);
 
 const STEP_EDIT_LABELS: {[key: string]: (step: StepDefinition) => string} = {
-  render: () => 'Edit props',
+  render: () => 'props',
 };
 
 const editStepLabel = (step: StepDefinition) =>
@@ -32,10 +32,11 @@ type StepProps = {
   link: string;
   onDelete: () => void;
   onEdit: () => void;
+  onEditWrapper: () => void;
   onResultClick?: (e: React.MouseEvent<HTMLElement>) => void;
 };
 
-const Step = ({step, result: {result}, selected, active, link, onDelete, onEdit, onResultClick}: StepProps) => {
+const Step = ({step, result: {result}, selected, active, link, onDelete, onEdit, onEditWrapper, onResultClick}: StepProps) => {
   const {type} = step;
   return (
     <StatusLink
@@ -53,6 +54,12 @@ const Step = ({step, result: {result}, selected, active, link, onDelete, onEdit,
           onClick={onEdit}
           className="text-xs font-semibold text-white hover:bg-white hover:text-gray-800 py-1 px-2 border border-whit rounded-full my-2 mr-2">
           {editStepLabel(step)}
+        </button>}
+
+        {(active && ['render'].includes(type)) && <button
+          onClick={onEditWrapper}
+          className="text-xs font-semibold text-white hover:bg-white hover:text-gray-800 py-1 px-2 border border-whit rounded-full my-2 mr-2">
+          wrapper
         </button>}
 
         {(active && type !== 'render') && <button

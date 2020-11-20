@@ -74,9 +74,9 @@ type PropTypes = {[key: string]: [string, boolean]}
 type Props = {[key: string]: any}
 
 const validateProps = (props: Props, propTypes: PropTypes) =>
-  Object.entries(props).reduce((prev, [propName, value]) => ({
+  Object.entries(propTypes).reduce((prev, [propName, propType]) => ({
     ...prev,
-    [propName]: isValidProp(value, ...propTypes[propName])
+    [propName]: isValidProp(props[propName], ...propType)
   }), {});
 
 const serialiseProps = (props: Props, propTypes: PropTypes) =>
@@ -144,7 +144,11 @@ const deserialiseProp = (value: string, propType: string) => {
   return value;
 };
 
-type PropTypesStatus = 'loading' | 'error' | 'loaded';
+enum PropTypesStatus {
+  loading,
+  error,
+  loaded
+}
 
 const EditRenderPropsModal: React.FC<EditStepProps> = ({step, onClose, onUpdateStep, file, exportName}) => {
   const [propTypes, setPropTypes] = useState<PropTypes>();
@@ -154,13 +158,13 @@ const EditRenderPropsModal: React.FC<EditStepProps> = ({step, onClose, onUpdateS
   const [isFormDirty, setIsFormDirty] = useState(false);
 
   useEffect(() => {
-    setPropTypesStatus('loading');
+    setPropTypesStatus(PropTypesStatus.loading);
 
-    fetch(`/component/propTypes?file=${file}&exportName=${exportName}`)
+    fetch(`/component/prop-types?file=${file}&exportName=${exportName}`)
       .then(res => res.json())
       .then(setPropTypes)
-      .then(() => setPropTypesStatus('loaded'))
-      .catch(() => setPropTypesStatus('error'))
+      .then(() => setPropTypesStatus(PropTypesStatus.loaded))
+      .catch(() => setPropTypesStatus(PropTypesStatus.error))
   }, [file, exportName]);
 
   useEffect(() => {
@@ -198,8 +202,8 @@ const EditRenderPropsModal: React.FC<EditStepProps> = ({step, onClose, onUpdateS
           </ModalHeader>
 
           <div className="mt-2">
-            {propTypesStatus === 'loading' && <LoadingIndicator>Searching for component prop types...</LoadingIndicator>}
-            {propTypesStatus === 'error' && <div className="text-red-700">There was an issue fetching this component's prop types</div>}
+            {propTypesStatus === PropTypesStatus.loading && <LoadingIndicator>Looking for component prop types...</LoadingIndicator>}
+            {propTypesStatus === PropTypesStatus.error && <div className="text-red-700">There was an issue fetching this component's prop types</div>}
             {
               propTypes ? Object.entries(propTypes)
                 .map(([propName, [propType, required]]) =>
@@ -239,14 +243,14 @@ const EditRenderPropsModal: React.FC<EditStepProps> = ({step, onClose, onUpdateS
           </div>
         </ModalBody>
         <ModalFooter>
-          <button type="submit"
-                  className="border border-blue-700 hover:border-transparent text-blue-700 hover:text-white hover:bg-blue-700 font-medium py-2 px-4 rounded-full my-2 mr-2">
-            Save
-          </button>
           <button type="button"
                   onClick={onClose}
-                  className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-full my-2 mr-2">
+                  className="shadow-md bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-full my-2 ml-2">
             Cancel
+          </button>
+          <button type="submit"
+                  className="shadow-md border border-blue-700 hover:border-transparent text-blue-700 hover:text-white hover:bg-blue-700 font-medium py-2 px-4 rounded-full my-2 ml-2">
+            Save
           </button>
         </ModalFooter>
       </form>

@@ -45,7 +45,7 @@ export const ModalBody: React.FC = ({children}) =>
   </div>;
 
 export const ModalFooter: React.FC = ({children}) =>
-  <div className="bg-gray-100 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+  <div className="bg-gray-100 px-4 py-3 sm:px-6 flex justify-end">
     {children}
   </div>;
 

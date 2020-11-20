@@ -7,6 +7,7 @@ import SelectedMockCallModal from "./test/SelectedMockCallModal";
 import EditRenderPropsModal from "./test/EditRenderPropsModal";
 import Step from "./test/Step";
 import EditMockModal, {EditStepProps} from "./test/EditMockModal";
+import EditRenderWrapperModal from "./test/EditRenderWrapperModal";
 import StepResultModal from "./test/StepResultModal";
 import LoadingIndicator from "./LoadingIndicator";
 
@@ -29,7 +30,7 @@ const labelMap: { [key: string]: string } = {
 const label = (text: string) =>
   labelMap[text] ? labelMap[text] : capitalise(text);
 
-type TestDefinition = {
+export type TestDefinition = {
   id: string;
   steps: StepDefinition[];
 };
@@ -88,7 +89,8 @@ const Test = ({history, file, exportName, test, step}: TestProps) => {
   const [regions, setRegions] = useState<RegionDefinition[]>([]);
   const [selectedRegion, setSelectedRegion] = useState<RegionDefinition>();
   const [selectedMockCall, setSelectedMockCall] = useState<MockCall>();
-  const [selectedStep, setSelectedStep] = useState<StepDefinition>();
+  const [selectedStepToEdit, setSelectedStepToEdit] = useState<StepDefinition>();
+  const [selectedStepToEditRenderWrapper, setSelectedStepToEditRenderWrapper] = useState<StepDefinition>();
   const [selectedStepResult, setSelectedStepResult] = useState<[StepDefinition, StepResult]>();
 
   useEffect(() => {
@@ -156,8 +158,17 @@ const Test = ({history, file, exportName, test, step}: TestProps) => {
 
   const handleEditStep = (stepToUpdate: StepDefinition, idx: number) =>
     save(steps.map((s, i) => (i === idx ? stepToUpdate : s))).then(() =>
-      setSelectedStep(undefined)
+      setSelectedStepToEdit(undefined)
     );
+
+  const handleEditRenderWrapperStep = (stepToUpdate: StepDefinition, idx: number) => {
+    setSelectedStepToEditRenderWrapper(stepToUpdate);
+    save(
+      steps.map((s, i) => (i === idx ? stepToUpdate : s))
+    ).then(() =>
+      setSelectedStepToEdit(undefined)
+    );
+  };
 
   const regionsByType = groupBy(regions, (r) => r.type);
 
@@ -167,7 +178,7 @@ const Test = ({history, file, exportName, test, step}: TestProps) => {
   };
 
   const EditModalComponent =
-    selectedStep && editStepComponents[selectedStep.type];
+    selectedStepToEdit && editStepComponents[selectedStepToEdit.type];
 
   return (
     <div className="bg-white flex">
@@ -233,13 +244,25 @@ const Test = ({history, file, exportName, test, step}: TestProps) => {
           />
         )}
 
-        {selectedStep && EditModalComponent && (
+        {selectedStepToEdit && EditModalComponent && (
           <EditModalComponent
-            step={selectedStep}
+            step={selectedStepToEdit}
             onUpdateStep={(updatedStep: StepDefinition) =>
-              handleEditStep(updatedStep, steps.indexOf(selectedStep))
+              handleEditStep(updatedStep, steps.indexOf(selectedStepToEdit))
             }
-            onClose={() => setSelectedStep(undefined)}
+            onClose={() => setSelectedStepToEdit(undefined)}
+            file={file}
+            exportName={exportName}
+          />
+        )}
+
+        {selectedStepToEditRenderWrapper && (
+          <EditRenderWrapperModal
+            step={selectedStepToEditRenderWrapper}
+            onUpdateStep={(updatedStep: StepDefinition) =>
+              handleEditRenderWrapperStep(updatedStep, steps.indexOf(selectedStepToEditRenderWrapper))
+            }
+            onClose={() => setSelectedStepToEditRenderWrapper(undefined)}
             file={file}
             exportName={exportName}
           />
@@ -264,7 +287,8 @@ const Test = ({history, file, exportName, test, step}: TestProps) => {
               active={i === step}
               link={`/tests/${test.id}?file=${file}&exportName=${exportName}&step=${i}`}
               onDelete={() => handleDeleteStep(i)}
-              onEdit={() => setSelectedStep(steps[i])}
+              onEdit={() => setSelectedStepToEdit(steps[i])}
+              onEditWrapper={() => setSelectedStepToEditRenderWrapper(steps[i])}
               onResultClick={(stepResults[i] && stepResults[i].result  === 'error') ? (() => setSelectedStepResult([s, stepResults[i]])) : undefined}
               key={i}
             />

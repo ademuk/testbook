@@ -14,6 +14,44 @@ import {getTsPropTypes} from "./propTypes";
 const hostNodeModulesPath = path.join(process.cwd(), 'node_modules');
 const {act} = require(path.join(hostNodeModulesPath, 'react-dom/test-utils'));
 
+const serialiseError = (error) => ({
+  name: error.name,
+  message: error.message,
+  stack: error.stack,
+  componentStack: error instanceof RenderError ? error.componentStack : undefined,
+});
+
+const loadModuleTests = (file) =>
+  getFile(file)
+    .then((f) => [file, f]);
+
+const findModuleTests = (searchPath: string): Promise<LoadedModule[]> =>
+  new Promise((resolve, reject) => {
+    glob(
+      path.join(searchPath, "**/*.tests.json"),
+      null,
+      (err, files) => {
+        console.log(`Test files found: ${files}`);
+
+        if (err) {
+          return reject(err)
+        }
+
+        Promise.all(files.map(loadModuleTests))
+          .then((files) => files.map(([fileName, file]) => ({
+            file: fileName.replace(/\.tests\.json$/, '').replace(new RegExp(`^src${path.sep}`), ''),
+            components: file.components.map((c) => ({
+              ...c,
+              exportName: c.name,
+              name: getExportComponentName(c.name, fileName).replace(/\.(.+)\.tests$/, '')
+            }))
+          })))
+          .then(resolve)
+          .catch(reject)
+      }
+    );
+  });
+
 const findModulesWithComponents = (searchPath: string): Promise<LoadedModule[]> =>
   new Promise((resolve, reject) => {
     glob(
@@ -33,7 +71,15 @@ const findModulesWithComponents = (searchPath: string): Promise<LoadedModule[]> 
             m.filter(m => !m.error && m.components.length)
               .map(
                 (m) =>
-                  ({...m, file: m.file.replace(new RegExp(`^src${path.sep}`), '')})
+                  ({
+                    ...m,
+                    components: m.components
+                      .map((c) => ({
+                        ...c,
+                        ...c.error && {error: serialiseError(c.error)}
+                      })),
+                    file: m.file.replace(new RegExp(`^src${path.sep}`), '')
+                  })
               )
           )
           .then(resolve)
@@ -41,7 +87,60 @@ const findModulesWithComponents = (searchPath: string): Promise<LoadedModule[]> 
     );
   });
 
-const compileModuleWithHostWebpack = (modulePath: string): Promise<[string, string]> => {
+const loadModuleWithComponents = (modulePath) : Promise<LoadedModule> =>
+  compileModuleWithHostWebpack(modulePath)
+    .then(([outputPath, filename]) =>
+      compileWrapperAndModuleWithWebpack(require.resolve("./findComponentsInModule"), outputPath, filename)
+    )
+    .then((moduleCode: string) => {
+      console.log(`Loading ${modulePath}`);
+
+      const script = new Script(moduleCode);
+      const context = createDOM().getInternalVMContext();
+      script.runInContext(context);
+      context.close();
+
+      return {
+        file: modulePath,
+        components: context.result && context.result
+          .filter(([, isComponent, error]) => isComponent || error)
+          .map(([exportName, , error]) => ({
+            exportName,
+            name: getExportComponentName(exportName, modulePath),
+            ...error && {error}
+          }))
+          .sort(
+            (a, b) =>
+              b.exportName === 'default' ? 1: -1
+          )
+      };
+    })
+    .catch((error) => {
+      console.log(`Load failed ${error}`);
+
+      return {
+        file: modulePath,
+        components: [],
+        error
+      };
+    });
+
+
+const getExportComponentName = (exportName, filePath) => {
+  if (exportName === 'default') {
+    const fileName = path.parse(filePath).name;
+
+    if (fileName === 'index') {
+      return path.basename(path.dirname(filePath));
+    }
+
+    return fileName
+  }
+
+  return exportName;
+};
+
+const compileModuleWithHostWebpack = (modulePath: string, externals: {[key: string]: string} = null): Promise<[string, string]> => {
   const craWebpackConfig = require(path.join(hostNodeModulesPath, 'react-scripts/config/webpack.config'))(process.env.NODE_ENV);
   const outputModulePath = modulePath.replace(/\.[^.]+$/, '.js');
 
@@ -61,6 +160,7 @@ const compileModuleWithHostWebpack = (modulePath: string): Promise<[string, stri
       externals: {
         react: 'react',
         "react-dom": 'react-dom',
+        ...externals
       }
     }, (err, stats) => {
       if (err) {
@@ -76,7 +176,7 @@ const compileModuleWithHostWebpack = (modulePath: string): Promise<[string, stri
   );
 };
 
-const compileWrapperWithWebpack = (wrapperModulePath: string,): Promise<string> =>
+const compileWrapperWithWebpack = (wrapperModulePath: string): Promise<string> =>
   new Promise((resolve, reject) =>
     webpack({
       entry: [wrapperModulePath],
@@ -87,13 +187,20 @@ const compileWrapperWithWebpack = (wrapperModulePath: string,): Promise<string> 
         rules: [
           {
             test: /\.tsx?$/,
-            use: require.resolve('ts-loader'),
+            use: [
+              {
+                loader: 'ts-loader',
+                options: {
+                  happyPackMode: true
+                }
+              }
+            ],
             exclude: /node_modules/,
           },
         ],
       },
       resolve: {
-        extensions: [ '.tsx', '.ts', '.js' ],
+        extensions: ['.tsx', '.ts', '.js'],
       },
     }, (err, stats) => {
       if (err) {
@@ -115,29 +222,39 @@ const compileWrapperWithWebpack = (wrapperModulePath: string,): Promise<string> 
     })
   ));
 
-const compileWrapperAndModuleWithWebpack = (wrapperModulePath: string, modulePath: string, moduleFilename: string): Promise<string> =>
+const compileWrapperAndModuleWithWebpack = (wrapperModulePath: string, modulePath: string, moduleFilename: string, aliases: {[key: string]: string} = null): Promise<string> =>
   new Promise((resolve, reject) =>
     webpack({
-      entry: [wrapperModulePath],
+      entry: [
+        wrapperModulePath,
+      ],
       output: {
         filename: path.join(path.basename(wrapperModulePath), moduleFilename),
       },
-      mode: 'development',
+      mode: "development",
       module: {
         rules: [
           {
             test: /\.tsx?$/,
-            use: require.resolve('ts-loader'),
+            use: [
+              {
+                loader: 'ts-loader',
+                options: {
+                  happyPackMode: true
+                }
+              }
+            ],
             exclude: /node_modules/,
           },
         ],
       },
       resolve: {
-        extensions: [ '.tsx', '.ts', '.js' ],
+        extensions: ['.tsx', '.ts', '.js'],
         alias: {
           module: modulePath && path.resolve(path.join(modulePath, moduleFilename)),
           react: path.join(hostNodeModulesPath, 'react'),
-          "react-dom": path.join(hostNodeModulesPath, 'react-dom')
+          "react-dom": path.join(hostNodeModulesPath, 'react-dom'),
+          ...aliases
         }
       },
     }, (err, stats) => {
@@ -178,65 +295,26 @@ type ComponentDefinition = {
   tests: TestDefinition[];
 }
 
+type WrapperDefinition = {
+  file: string;
+  exportName: string;
+  props?: {[key: string]: any};
+}
+
 export type LoadedComponent = {
   name: string;
   exportName;
+  error?: {[key: string]: any}
 }
 
 type LoadedModule = {
   file: string;
   components: LoadedComponent[];
-  error?: string
+  error?: Error
 }
 
-const loadModuleWithComponents = (modulePath) : Promise<LoadedModule> =>
-  compileModuleWithHostWebpack(modulePath)
-    .then(([outputPath, filename]) =>
-      compileWrapperAndModuleWithWebpack(require.resolve("./findComponentsInModule"), outputPath, filename)
-    )
-    .then((moduleCode: string) => {
-      const script = new Script(moduleCode);
-      const context = createDOM().getInternalVMContext();
-      script.runInContext(context);
-      context.close();
-
-      return {
-        file: modulePath,
-        components: context.result && context.result
-          .map((exportName) => ({exportName, name: getExportComponentName(exportName, modulePath)}))
-          .sort(
-            (a, b) =>
-              b.exportName === 'default' ? 1: -1
-          )
-      };
-    })
-    .catch((error) => {
-      console.log(`Load failed ${error}`);
-
-      return {
-        file: modulePath,
-        components: [],
-        error
-      };
-    });
-
-
-const getExportComponentName = (exportName, filePath) => {
-  if (exportName === 'default') {
-    const fileName = path.parse(filePath).name;
-
-    if (fileName === 'index') {
-      return path.basename(path.dirname(filePath));
-    }
-
-    return fileName
-  }
-
-  return exportName;
-};
-
 const getComponent = (file, exportName): Promise<ComponentDefinition> =>
-  getFile(file)
+  getTestFile(file)
     .then(f => f.components.find(c => c.name === exportName));
 
 const getComponentTests = (file, exportName): Promise<TestDefinition[]> =>
@@ -267,7 +345,7 @@ const getComponentTest = (file, exportName, testId) =>
     .then(t => t.find(t => t.id === testId));
 
 const getOrCreateFileJson = (file): Promise<LoadedFile> =>
-  getFile(file)
+  getTestFile(file)
     .catch(() => ({
       components: []
     }));
@@ -278,10 +356,13 @@ type LoadedFile = {
 
 const getFile = (file): Promise<LoadedFile> =>
   new Promise((resolve, reject) =>
-    fs.readFile(`${file}.tests.json`, 'utf8', (err, data) =>
-      err ? reject() : resolve(JSON.parse(data))
+    fs.readFile(file, 'utf8', (err, data) =>
+      err ? reject(err) : resolve(JSON.parse(data))
     )
   );
+
+const getTestFile = (file): Promise<LoadedFile> =>
+  getFile(`${file}.tests.json`);
 
 const writeFile = (file, payload) =>
   new Promise((resolve, reject) =>
@@ -293,14 +374,6 @@ const writeFile = (file, payload) =>
       }
     )
   );
-
-const createDOM = () =>
-  new JSDOM('<!doctype html><html lang="en-GB"><body /></html>', {
-    pretendToBeVisual: true,
-    runScripts: 'dangerously',
-    url: 'http://localhost',
-    virtualConsole: new VirtualConsole().sendTo(console)
-  });
 
 const getOrCreateComponent = (fileJson: LoadedFile, exportName) => {
   const component = fileJson.components.find(c => c.name === exportName);
@@ -372,7 +445,7 @@ const fileJsonWithUpdatedComponent = (fileJson, exportName, testId, steps) => ({
 });
 
 const updateTestSteps = (file, exportName, testId, steps) =>
-  getFile(file)
+  getTestFile(file)
     .then(fileJson => {
       const payload = fileJsonWithUpdatedComponent(fileJson, exportName, testId, steps);
       return new Promise((resolve, reject) => {
@@ -413,23 +486,41 @@ class AssertionError extends Error {
   }
 }
 
-const render = (file, exportName, props, context) =>
-  compileModuleWithHostWebpack(file)
+const createDOM = () =>
+  new JSDOM('<!doctype html><html lang="en-GB"><body /></html>', {
+    pretendToBeVisual: true,
+    runScripts: 'dangerously',
+    url: 'http://localhost',
+    virtualConsole: new VirtualConsole().sendTo(console)
+  });
+
+const render = (file, exportName, props, context, wrapper?: WrapperDefinition) =>
+  compileModuleWithHostWebpack(file, wrapper ? {[wrapper.file]: wrapper.file} : null)
     .then(([moduleOutputPath, moduleFilename]) =>
-      compileWrapperAndModuleWithWebpack(require.resolve("./render"), moduleOutputPath, moduleFilename)
+      compileWrapperAndModuleWithWebpack(
+        require.resolve("./render"),
+        moduleOutputPath,
+        moduleFilename,
+        {
+          wrapper: wrapper ? path.join(hostNodeModulesPath, wrapper.file) : require.resolve('./noop'),
+          ...wrapper ? {[wrapper.file]: path.join(hostNodeModulesPath, wrapper.file)} : null
+        }
+      )
     )
     .then((moduleCode) => {
       const script = new Script(moduleCode);
       context.exportName = exportName;
       context.props = props;
+      context.wrapperExportName = wrapper && wrapper.exportName;
+      context.wrapperProps = wrapper && wrapper.props;
       script.runInContext(context);
       return context.result;
-    }).catch(([errorException, {componentStack}]) => {
+    }).catch(([errorException, componentError]) => {
       throw new RenderError(
         errorException.name,
         errorException.message,
         errorException.stack,
-        componentStack
+        componentError && componentError.componentStack
       );
     });
 
@@ -472,8 +563,8 @@ const renderComponentSideEffects = (file, exportName, testId, step) =>
       };
     });
 
-const runRenderStep = (file, exportName, {definition: {props}}, context: Context): Promise<ResultAndContext> =>
-  render(file, exportName, props, context)
+const runRenderStep = (file, exportName, {definition: {props, wrapper}}, context: Context): Promise<ResultAndContext> =>
+  render(file, exportName, props, context, wrapper)
     .then(
       () => ['success', context] as ResultAndContext
     )
@@ -598,6 +689,15 @@ const getComponentPropTypes = (modulePath, exportName) => {
     });
 };
 
+const getWrapperOptions = () =>
+  Promise.resolve([
+    {
+      file: 'react-router-dom',
+      exportName: 'MemoryRouter',
+      propTypes: {}
+    }
+  ]);
+
 const app = express();
 const PORT = 9010;
 
@@ -606,66 +706,83 @@ app.use(express.json());
 const SEARCH_PATH = './src';
 
 app.get(
-  '/component',
-  (req, res) =>
+  '/module-test',
+  (req, res, next) =>
+    findModuleTests(SEARCH_PATH)
+      .then(
+        moduleComponentTests => res.send(moduleComponentTests)
+      )
+      .catch(next)
+);
+
+app.get(
+  '/module-component',
+  (req, res, next) =>
     findModulesWithComponents(SEARCH_PATH)
       .then(
         modulesWithComponents => res.send(modulesWithComponents)
       )
+      .catch(next)
 );
 
 app.get(
   '/test',
-  (req, res) =>
+  (req, res, next) =>
     getComponentTests(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName)
       .then(
-        test => res.send(test)
+        tests => res.send(tests)
       )
+      .catch(next)
 );
 
 app.get(
   '/test/status',
-  (req, res) =>
+  (req, res, next) =>
     getComponentTestStatuses(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName)
       .then(
         statuses => res.send(statuses)
       )
+      .catch(next)
 );
 
 app.get(
   '/test/:testId',
-  (req, res) =>
+  (req, res, next) =>
     getComponentTest(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName, req.params.testId)
       .then(
         test => res.send(test)
       )
+      .catch(next)
 );
 
 app.post(
   '/test',
-  (req, res) =>
+  (req, res, next) =>
     createTest(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName)
       .then(
         test => res.send(test)
       )
+      .catch(next)
 );
 
 app.put(
   '/test/:testId/steps',
-  (req, res) =>
+  (req, res, next) =>
     updateTestSteps(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName, req.params.testId, req.body)
       .then(
-        test => res.send(test)
+        testSteps => res.send(testSteps)
       )
+      .catch(next)
 );
 
 app.get(
   '/test/:testId/render/side-effects',
-  (req, res) =>
+  (req, res, next) =>
     renderComponentSideEffects(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName, req.params.testId, req.query.step)
       .then(
-        test => res.send(test)
+        testSideEffects => res.send(testSideEffects)
       )
+      .catch(next)
 );
 
 app.get(
@@ -673,29 +790,30 @@ app.get(
   (req, res, next) =>
     runComponentTest(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName, req.params.testId, req.query.step)
       .then(
-        ([results]) => res.send(
-          results.map(
-            ({result}) => (result instanceof Error ? {
-                result: 'error',
-                error: {
-                  name: result.name,
-                  message: result.message,
-                  stack: result.stack,
-                  componentStack: result instanceof RenderError ? result.componentStack : undefined,
-                }
-              } : {result})
-            )
+        ([results]) => results.map(
+          ({result}) => (result instanceof Error ? {result: 'error', error: serialiseError(result)} : {result})
         )
+      )
+      .then((results) => res.send(results))
+      .catch(next)
+);
+
+app.get(
+  '/component/prop-types',
+  (req, res, next) =>
+    getComponentPropTypes(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName)
+      .then(
+        (propTypes) => res.send(propTypes)
       )
       .catch(next)
 );
 
 app.get(
-  '/component/propTypes',
+  '/component/wrapper',
   (req, res, next) =>
-    getComponentPropTypes(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName)
+    getWrapperOptions()
       .then(
-        (propTypes) => res.send(propTypes)
+        wrappers => res.send(wrappers)
       )
       .catch(next)
 );

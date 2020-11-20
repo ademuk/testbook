@@ -54,14 +54,14 @@ const EditMockModal: React.FC<EditStepProps> = ({step, onClose, onUpdateStep}) =
           </div>
         </ModalBody>
         <ModalFooter>
-          <button type="submit"
-                  className="border border-blue-700 hover:border-transparent text-blue-700 hover:text-white hover:bg-blue-700 font-medium py-2 px-4 rounded-full my-2 mr-2">
-            Save
-          </button>
           <button type="button"
                   onClick={onClose}
-                  className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-full my-2 mr-2">
+                  className="shadow-md bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-full my-2 ml-2">
             Cancel
+          </button>
+          <button type="submit"
+                  className="shadow-md border border-blue-700 hover:border-transparent text-blue-700 hover:text-white hover:bg-blue-700 font-medium py-2 px-4 rounded-full my-2 ml-2">
+            Save
           </button>
           {!isValidJson && <div className="text-red-700 py-4 mr-auto">
             JSON validation failed

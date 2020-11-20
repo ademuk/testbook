@@ -25,17 +25,20 @@ window.result = Object.keys(loadedModule)
       exportedModule: loadedModule[exportName]
     })
   )
-  .filter(({exportName, exportedModule}) => {
+  .map(({exportName, exportedModule}) => {
+    console.log(`Loading ${exportName}`)
     if (exportedModule.propTypes) {
       return true;
     }
 
     const container = document.createElement('div');
 
-    ReactDOM.render(React.createElement(exportedModule), container);
+    try {
+      ReactDOM.render(React.createElement(exportedModule, {}), container);
+    } catch(e) {
+      console.log(`Error rendering ${exportName}: ${e}`)
+      return [exportName, false, e];
+    }
 
-    return !!container;
-  })
-  .map(
-    ({exportName}) => exportName
-  );
+    return [exportName, !!container, null];
+  });
