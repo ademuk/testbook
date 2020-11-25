@@ -114,7 +114,11 @@ const serialiseProp = (value: string, propType: string) => {
     return value === 'true';
   }
 
-  return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
 };
 
 const deserialiseProps = (props: Props, propTypes: PropTypes) =>
@@ -141,7 +145,7 @@ const deserialiseProp = (value: string, propType: string) => {
     return value !== undefined ? value.toString() : value;
   }
 
-  return value;
+  return typeof value === 'object' ? JSON.stringify(value) : value;
 };
 
 enum PropTypesStatus {
