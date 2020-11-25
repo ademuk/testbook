@@ -22,7 +22,7 @@ type StatusLinkProps = {
   link: string;
   selected?: boolean;
   active?: boolean;
-  subTitle?: string;
+  subtitle?: string;
   status?: string;
   onResultClick?: (e: React.MouseEvent<HTMLElement>) => void,
 };
@@ -32,7 +32,7 @@ const StatusLink: React.FC<StatusLinkProps> = ({
   children,
   selected = false,
   active = false,
-  subTitle = null,
+  subtitle = null,
   status = null,
   onResultClick = null
 }) => (
@@ -48,9 +48,9 @@ const StatusLink: React.FC<StatusLinkProps> = ({
     />
 
     <div className="flex-grow font-medium px-2">{children}</div>
-    {subTitle && (
+    {subtitle && (
       <div className="text-xs font-normal text-gray-500 tracking-wide">
-        {subTitle}
+        {subtitle}
       </div>
     )}
   </RouterLink>

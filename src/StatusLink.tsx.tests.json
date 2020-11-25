@@ -1,0 +1,62 @@
+{
+  "components": [
+    {
+      "name": "default",
+      "tests": [
+        {
+          "id": "eb1c0580-2547-11eb-9f69-2f25d3e1f420",
+          "steps": [
+            {
+              "type": "render",
+              "definition": {
+                "props": {
+                  "children": "Link Label",
+                  "link": "/link"
+                },
+                "wrapper": {
+                  "file": "react-router-dom",
+                  "exportName": "MemoryRouter",
+                  "props": {}
+                }
+              }
+            },
+            {
+              "type": "assertion",
+              "definition": {
+                "type": "text",
+                "target": "Link Label"
+              }
+            }
+          ]
+        },
+        {
+          "id": "07587430-2f62-11eb-be29-f9da4f954b09",
+          "steps": [
+            {
+              "type": "render",
+              "definition": {
+                "props": {
+                  "subtitle": "Subtitle label",
+                  "children": "Main label",
+                  "link": "/link"
+                },
+                "wrapper": {
+                  "file": "react-router-dom",
+                  "exportName": "MemoryRouter",
+                  "props": {}
+                }
+              }
+            },
+            {
+              "type": "assertion",
+              "definition": {
+                "type": "text",
+                "target": "Subtitle label"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

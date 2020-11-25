@@ -43,7 +43,7 @@ const Step = ({step, result: {result}, selected, active, link, onDelete, onEdit,
     <StatusLink
       link={link}
       status={result}
-      subTitle={type}
+      subtitle={type}
       selected={selected}
       active={active}
       onResultClick={onResultClick}
