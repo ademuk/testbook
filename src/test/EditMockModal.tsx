@@ -16,7 +16,7 @@ const EditMockModal: React.FC<EditStepProps> = ({step, onClose, onUpdateStep}) =
   const [isValidJson, setIsValidJson] = useState(true);
 
   useEffect(() => {
-    setReturnValue(JSON.stringify(step.definition.return))
+    setReturnValue(step.definition.return && JSON.stringify(step.definition.return))
   }, [step.definition.return]);
 
   useEffect(() => {
@@ -54,6 +54,9 @@ const EditMockModal: React.FC<EditStepProps> = ({step, onClose, onUpdateStep}) =
           </div>
         </ModalBody>
         <ModalFooter>
+          {!isValidJson && <div className="text-red-700 py-4 mr-auto">
+            JSON validation failed
+          </div>}
           <button type="button"
                   onClick={onClose}
                   className="shadow-md bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-full my-2 ml-2">
@@ -63,9 +66,6 @@ const EditMockModal: React.FC<EditStepProps> = ({step, onClose, onUpdateStep}) =
                   className="shadow-md border border-blue-700 hover:border-transparent text-blue-700 hover:text-white hover:bg-blue-700 font-medium py-2 px-4 rounded-full my-2 ml-2">
             Save
           </button>
-          {!isValidJson && <div className="text-red-700 py-4 mr-auto">
-            JSON validation failed
-          </div>}
         </ModalFooter>
       </form>
     </Modal>
