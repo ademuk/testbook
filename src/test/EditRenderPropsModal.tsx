@@ -206,8 +206,8 @@ const EditRenderPropsModal: React.FC<EditStepProps> = ({step, onClose, onUpdateS
           </ModalHeader>
 
           <div className="mt-2">
-            {propTypesStatus === PropTypesStatus.loading && <LoadingIndicator>Looking for component prop types...</LoadingIndicator>}
-            {propTypesStatus === PropTypesStatus.error && <div className="text-red-700">There was an issue fetching this component's prop types</div>}
+            {propTypesStatus === PropTypesStatus.loading && <LoadingIndicator>Looking for the component's props...</LoadingIndicator>}
+            {propTypesStatus === PropTypesStatus.error && <div className="text-red-700">There was an issue fetching this component's props</div>}
             {
               propTypes ? Object.entries(propTypes)
                 .map(([propName, [propType, required]]) =>
@@ -242,7 +242,7 @@ const EditRenderPropsModal: React.FC<EditStepProps> = ({step, onClose, onUpdateS
             }
             {
               (propTypes && Object.keys(propTypes).length === 0) ?
-                <p className="text-sm leading-5 text-gray-500">No props were detected for this component.</p> : null
+                <p className="text-sm leading-5 text-gray-500">No props were found for this component.</p> : null
             }
           </div>
         </ModalBody>

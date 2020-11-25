@@ -63,13 +63,25 @@ export const inferPropTypes = (propTypes) =>
     {}
   );
 
-const typesToProps = (prev, curr) => ({
-  ...prev,
-  [curr.getName()]: [
-    curr.getValueDeclaration().getType().getText(),
-    !curr.getValueDeclaration().getType().isNullable(),
-  ],
-});
+const getNodeParameters = (node) => {
+  if (
+    Node.isVariableDeclaration(node) &&
+    Node.isArrowFunction(node.getInitializer())
+  ) {
+    return (node.getInitializer() as ArrowFunction)
+        .getParameters();
+  }
+
+  if (Node.isFunctionDeclaration(node)) {
+    return node.getParameters();
+  }
+
+  if (Node.isClassDeclaration(node)) {
+    return node.getHeritageClauses()[0].getTypeNodes()[0].getTypeArguments();
+  }
+
+  return [];
+};
 
 export const getTsPropTypes = (
   modulePath: string,
@@ -83,41 +95,25 @@ export const getTsPropTypes = (
     .getExportedDeclarations()
     .get(exportName);
 
-  if (
-    Node.isVariableDeclaration(node) &&
-    Node.isArrowFunction(node.getInitializer())
-  ) {
-    return Promise.resolve(
-      (node.getInitializer() as ArrowFunction)
-        .getParameters()[0]
-        .getType()
-        .getProperties()
-        .reduce(
-          typesToProps,
-          {}
-        )
-    );
+  const nodeParameters = getNodeParameters(node);
+
+  if (!nodeParameters.length) {
+    return Promise.resolve({});
   }
 
-  if (Node.isFunctionDeclaration(node)) {
-    return Promise.resolve(
-      node
-        .getParameters()[0]
-        .getType()
-        .getProperties()
-        .reduce(
-          typesToProps,
-          {}
-        )
-    );
-  }
+  const [firstParam] = nodeParameters;
 
-  if (Node.isClassDeclaration(node)) {
-    return Promise.resolve(
-      node.getHeritageClauses()[0].getTypeNodes()[0].getTypeArguments()[0].getType().getProperties().reduce(
-        typesToProps,
-        {}
+  return Promise.resolve(
+    firstParam.getType()
+      .getProperties()
+      .reduce(
+        (prev, curr) => ({
+          ...prev,
+          [curr.getName()]: [
+            curr.getValueDeclaration().getType().getText(),
+            !curr.getValueDeclaration().getType().isNullable(),
+          ],
+        }), {}
       )
-    )
-  }
+  );
 };
