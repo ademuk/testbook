@@ -3,7 +3,7 @@ import { Link as RouterLink, RouteComponentProps } from "react-router-dom";
 import type { History } from "history";
 import queryString from "query-string";
 import SelectedRegionModal from "./test/SelectedRegionModal";
-import SelectedMockCallModal from "./test/SelectedMockCallModal";
+import SelectedMockCallModal, {renderMockCallArgsLabel} from "./test/SelectedMockCallModal";
 import EditRenderPropsModal from "./test/EditRenderPropsModal";
 import Step from "./test/Step";
 import EditMockModal, {EditStepProps} from "./test/EditMockModal";
@@ -220,7 +220,7 @@ const Test = ({history, file, exportName, test, step}: TestProps) => {
                 key={[i, ...args].join('')}
                 onClick={() => setSelectedMockCall([name, args])}
               >
-                {args}
+                {renderMockCallArgsLabel(args)}
               </button>
             ))}
           </Fragment>)

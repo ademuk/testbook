@@ -1,6 +1,7 @@
 import React from "react";
 import StatusLink from "../StatusLink";
 import type {StepDefinition, StepResult} from "../Test";
+import {renderMockCallArgsLabel} from "./SelectedMockCallModal";
 
 const defaultStepRenderer = (step: StepDefinition) => Object.entries(step).map(([key, val]) =>
   `${key}: ${typeof val == 'object' ? JSON.stringify(val) : val}`
@@ -10,8 +11,8 @@ const STEP_LABELS: {[key: string]: (step: StepDefinition) => string} = {
   render: () => `Render component`,
   event: ({definition: {target}}: StepDefinition) => `Click on "${target}"`,
   assertion: ({definition: {type, target}}: StepDefinition) =>
-    type === 'text' ? `Assert "${target}" is visible` : `Assert ${type} ${target.name} ${target.args} called`,
-  mock: ({definition: {name, args}}: StepDefinition) => `Mock ${name} ${args}`,
+    type === 'text' ? `Assert "${target}" is visible` : `Assert ${type} ${target.name} ${renderMockCallArgsLabel(target.args)} called`,
+  mock: ({definition: {name, args}}: StepDefinition) => `Mock ${name} ${renderMockCallArgsLabel(args)}`,
 };
 
 export const renderStepLabel = (step: StepDefinition) =>

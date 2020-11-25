@@ -3,6 +3,12 @@ import Modal, {ModalBody, ModalFooter, ModalHeader} from "../Modal";
 import type {StepDefinition, MockCall} from "../Test";
 
 
+export const renderMockCallArgsLabel = ([url, ...options]: any[]) => {
+  const method = options.length && options[0].method ? options[0].method : 'get';
+
+  return `${method.toUpperCase()} ${url}`;
+};
+
 type SelectedMockCallModalProps = {
   selectedMockCall: MockCall;
   onClose: () => void;
@@ -13,7 +19,7 @@ const SelectedMockCallModal = ({selectedMockCall: [name, args], onClose, onUpdat
   <Modal onClose={onClose}>
     <ModalBody>
       <ModalHeader>
-        {name} <span className="font-bold">{args}</span>
+        {name} <span className="font-bold">{renderMockCallArgsLabel(args)}</span>
       </ModalHeader>
     </ModalBody>
     <ModalFooter>
