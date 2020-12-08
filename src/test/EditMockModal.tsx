@@ -1,4 +1,8 @@
 import React, {useEffect, useState} from "react";
+// @ts-ignore
+import JSONInput from 'react-json-editor-ajrm';
+// @ts-ignore
+import locale from 'react-json-editor-ajrm/locale/en';
 import {renderStepLabel} from "./Step";
 import Modal, {ModalBody, ModalFooter, ModalHeader} from "../Modal";
 import type {StepDefinition} from '../Test';
@@ -12,21 +16,17 @@ export type EditStepProps = {
 }
 
 const EditMockModal: React.FC<EditStepProps> = ({step, onClose, onUpdateStep}) => {
-  const [returnValue, setReturnValue] = useState('');
+  const [returnValue, setReturnValue] = useState({});
   const [isValidJson, setIsValidJson] = useState(true);
 
   useEffect(() => {
-    setReturnValue(step.definition.return && JSON.stringify(step.definition.return))
+    setReturnValue(step.definition.return ? step.definition.return : {})
   }, [step.definition.return]);
 
-  useEffect(() => {
-    try {
-      JSON.parse(returnValue);
-      setIsValidJson(true);
-    } catch (e) {
-      setIsValidJson(false);
-    }
-  }, [returnValue]);
+  const handleReturnValueChange = ({error, jsObject}: {error?: any, jsObject: any}) => {
+    setReturnValue(jsObject);
+    setIsValidJson(error === false);
+  };
 
   return (
     <Modal onClose={onClose}>
@@ -37,20 +37,23 @@ const EditMockModal: React.FC<EditStepProps> = ({step, onClose, onUpdateStep}) =
           return;
         }
 
-        onUpdateStep({...step, definition: {...step.definition, return: JSON.parse(returnValue)}});
+        onUpdateStep({...step, definition: {...step.definition, return: returnValue}});
       }}>
         <ModalBody>
           <ModalHeader>
             {renderStepLabel(step)} <span className="font-bold">return</span>
           </ModalHeader>
           <div className="mt-2 flex">
-            <textarea
-              defaultValue={returnValue}
-              onChange={({target: {value}}) => setReturnValue(value)}
-              placeholder="json"
-              className={`flex-1 py-2 px-3 h-56 text-gray-700 shadow appearance-none rounded font-mono leading-tight focus:outline-none focus:shadow-outline border ${isValidJson ? 'border-gray-200' : 'border-red-400'}`}
-            >
-            </textarea>
+            <JSONInput
+              id="id"
+              placeholder={isValidJson ? returnValue : {}}
+              theme="light_mitsuketa_tribute"
+              locale={locale}
+              width='100%'
+              height='550px'
+              onChange={handleReturnValueChange}
+              waitAfterKeyPress={0}
+            />
           </div>
         </ModalBody>
         <ModalFooter>
