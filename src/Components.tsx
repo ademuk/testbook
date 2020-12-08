@@ -116,7 +116,7 @@ export default function Components() {
   const [showOtherComponents, setShowOtherComponents] = useState(false);
 
   useEffect(() => {
-    if (showOtherComponents || (testsStatus === LoadingStatus.loaded && !moduleTests.length)) {
+    if (showOtherComponents ) {
       setModulesStatus(LoadingStatus.loading);
       fetch('/module-component')
         .then(res => res.json())
@@ -124,7 +124,43 @@ export default function Components() {
         .then(() => setModulesStatus(LoadingStatus.loaded))
         .catch(() => setModulesStatus(LoadingStatus.error))
     }
-  }, [showOtherComponents, testsStatus, moduleTests]);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  }, [showOtherComponents]);
+
+  useEffect(() => {
+    if (testsStatus === LoadingStatus.loaded && !moduleTests.length) {
+      setShowOtherComponents(true);
+    }
+  }, [testsStatus, moduleTests]);
 
   useEffect(() => {
     setTestsStatus(LoadingStatus.loading);
@@ -152,9 +188,17 @@ export default function Components() {
         )
       )}
       {
-        (testsStatus === LoadingStatus.loaded && !moduleTests.length) && <div className="p-6">You don't have any tests yet</div>
+        (testsStatus === LoadingStatus.loaded && !moduleTests.length) && <div className="flex justify-center p-3 px-3">
+          <div className="w-full">
+            <div className="bg-white shadow-md rounded-lg px-3 py-2">
+              <div className="block text-gray-700 text-lg font-semibold py-2 px-2">
+                You don't have any tests yet
+              </div>
+            </div>
+          </div>
+        </div>
       }
-      {modulesStatus === LoadingStatus.loading && <div className="p-6"><LoadingIndicator>Looking for other components...</LoadingIndicator></div>}
+      {modulesStatus === LoadingStatus.loading && <div className="p-6"><LoadingIndicator>Looking for components...</LoadingIndicator></div>}
       {
         !!modulesWithOnlyErrors.length && <div className="p-6 block text-gray-700 text-2xl font-semibold py-2">Other modules which had errors</div>
       }
