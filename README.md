@@ -6,20 +6,25 @@ It currently supports apps created by CRA.
 
 ## Running
 
-Run the following from your CRA project
+Testbook runs in your browser, to start it from your CRA project use the following command:
 ```
 npx testbook
 ```
 
+Once you have created tests, use the following to run those tests on the cli (suitable for CI):
+```
+npx testbook cli
+```
+
 ## Contributing
 
-Run the following in the Testbook directory:
+Clone and run the following in the Testbook directory:
 
 ```
 yarn link
 ```
 
-To the start the api dev server, pick any CRA project directory and run:
+To the start the dev api server, pick any CRA project directory and run:
 ```
 yarn link testbook
 npx testbook dev
