@@ -124,36 +124,6 @@ export default function Components() {
         .then(() => setModulesStatus(LoadingStatus.loaded))
         .catch(() => setModulesStatus(LoadingStatus.error))
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   }, [showOtherComponents]);
 
   useEffect(() => {

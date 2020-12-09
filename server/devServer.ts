@@ -1,7 +1,7 @@
-const path = require("path");
-const {spawn} = require("child_process");
+import path  from "path";
+import {spawn} from "child_process";
 
-const startDevServer = (client_static_root) => {
+export const startDevServer = (client_static_root) => {
   const node_modules_path = path.dirname(path.dirname(require.resolve('ts-node/package.json')));
   const process = spawn(`${node_modules_path}/.bin/ts-node-dev`, ['--pretty', '--project', require.resolve('../tsconfig.json'), require.resolve('../server.ts'), client_static_root]);
 
@@ -23,5 +23,3 @@ const startDevServer = (client_static_root) => {
 
   return new Promise((resolve) => resolve)
 };
-
-module.exports.startDevServer = startDevServer;

@@ -43,7 +43,7 @@ const StatusLink: React.FC<StatusLinkProps> = ({
     <span
       className={`${
         ((status && stepClassNames[status]) || "bg-gray-400")
-      } h-2 w-2 m-2 rounded-full ${onResultClick && 'hover:bg-red-700'}`}
+      } h-2 w-2 m-2 rounded-full flex-shrink-0 ${onResultClick && 'hover:bg-red-700'}`}
       onClick={onResultClick ? onResultClick : () => {}}
     />
 

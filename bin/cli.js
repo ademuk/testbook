@@ -1,21 +1,31 @@
 #!/usr/bin/env node
 
-const openBrowser = require('react-dev-utils/openBrowser');
+const {runner} = require("../server/build/runner");
 
 const {startDevServer} = require("../server/build/devServer");
 const {startServer} = require("../server/build/server");
 
-const [env] = process.argv.slice(2);
+const [mode = 'default'] = process.argv.slice(2);
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'development';
 
-const start = env === 'dev' ? startDevServer : startServer;
-const client_static_root = env === 'dev' ? '../build' : '../../build';
+const runCli = () => {
+  runner();
+};
 
-start(client_static_root)
-  .then((port) => {
-    console.log(`Started Testbook http://localhost:${port}.`);
+const MODES = {
+  default: [startServer, ['../../build']],
+  dev: [startDevServer, ['../build']],
+  cli: [runCli, []],
+};
 
-    openBrowser(`http://localhost:${port}`);
-  });
+const m = MODES[mode];
+
+if (!m) {
+  throw Error(`Command "${mode}" not found. Try one of the following: ${Object.keys(MODES)}`)
+}
+
+const [fn, args] = m;
+
+fn(...args);
 

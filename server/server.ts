@@ -10,11 +10,12 @@ import {v1 as uuidv1} from 'uuid';
 import {JSDOM, VirtualConsole} from 'jsdom';
 import webpack from "webpack";
 import {getTsPropTypes} from "./propTypes";
+import openBrowser from 'react-dev-utils/openBrowser';
 
 const hostNodeModulesPath = path.join(process.cwd(), 'node_modules');
 const {act} = require(path.join(hostNodeModulesPath, 'react-dom/test-utils'));
 
-const serialiseError = (error) => ({
+export const serialiseError = (error) => ({
   name: error.name,
   message: error.message,
   stack: error.stack,
@@ -25,7 +26,7 @@ const loadModuleTests = (file) =>
   getFile(file)
     .then((f) => [file, f]);
 
-const findModuleTests = (searchPath: string): Promise<LoadedModule[]> =>
+export const findModuleTests = (searchPath: string): Promise<LoadedModule[]> =>
   new Promise((resolve, reject) => {
     glob(
       path.join(searchPath, "**/*.tests.json"),
@@ -329,7 +330,7 @@ const getComponentTestStatuses = (file, exportName) =>
     .then((tests: TestDefinition[]) =>
       Promise.all(
         tests.map(t =>
-          runComponentTest(file, exportName, t.id, t.steps.length - 1)
+          runComponentTest(file, exportName, t.id)
             .then(([results]) => [t.id, results])
         )
       )
@@ -533,7 +534,7 @@ const setupVmContextWithContainerAndMocks = (): Context =>
       return context
     });
 
-const renderComponentSideEffects = (file, exportName, testId, step) =>
+const renderComponentSideEffects = (file, exportName, testId, step: number) =>
   runComponentTest(file, exportName, testId, step)
     .then(([, context]) => {
       const {container, mocks} = context;
@@ -647,7 +648,7 @@ const runStep = (file, exportName, step, context): Promise<ResultAndContext> => 
   return STEP_RUNNERS[step.type](file, exportName, step, context);
 };
 
-const runComponentTest = (file, exportName, testId, step): Promise<ResultsAndContext> =>
+export const runComponentTest = (file, exportName, testId, step?: number): Promise<ResultsAndContext> =>
   Promise.all([
     setupVmContextWithContainerAndMocks(),
     getComponentTest(file, exportName, testId)
@@ -778,7 +779,7 @@ app.put(
 app.get(
   '/test/:testId/render/side-effects',
   (req, res, next) =>
-    renderComponentSideEffects(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName, req.params.testId, req.query.step)
+    renderComponentSideEffects(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName, req.params.testId, parseInt((req.query.step as string), 10))
       .then(
         testSideEffects => res.send(testSideEffects)
       )
@@ -788,7 +789,7 @@ app.get(
 app.get(
   '/test/:testId/run',
   (req, res, next) =>
-    runComponentTest(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName, req.params.testId, req.query.step)
+    runComponentTest(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName, req.params.testId)
       .then(
         ([results]) => results.map(
           ({result}) => (result instanceof Error ? {result: 'error', error: serialiseError(result)} : {result})
@@ -819,7 +820,7 @@ app.get(
 );
 
 
-const startServer = (client_static_root) => {
+export const startServer = (client_static_root) => {
   app.use(
     '/',
     express.static(path.join(__dirname, client_static_root))
@@ -829,20 +830,19 @@ const startServer = (client_static_root) => {
     res.sendFile(path.join(__dirname, client_static_root, 'index.html'))
   );
 
-  return new Promise((resolve) =>
-    app.listen(
-      PORT,
-      () => resolve(PORT)
-    )
-  );
-};
+  app.listen(
+    PORT,
+    () => {
+      console.log(`Started Testbook http://localhost:${PORT}.`);
 
-module.exports.startServer = startServer;
+      openBrowser(`http://localhost:${PORT}`);
+    }
+  )
+};
 
 const isCLI = require.main === module;
 
 if (isCLI) {
   const [client_static_root] = process.argv.slice(2);
-  startServer(client_static_root)
-    .then((port) => console.log(`Started Testbook development server on port ${port}`));
+  startServer(client_static_root);
 }

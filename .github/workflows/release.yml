@@ -13,12 +13,14 @@ jobs:
           node-version: 12
       - name: Install dependencies
         run: yarn install --frozen-lockfile
-      - name: Build UI
-        run: yarn build
       - name: Build API
         run: yarn build-api
       - name: Test API
         run: yarn test-api
+      - name: Build UI
+        run: yarn build
+      - name: Test UI
+        run: ./bin/cli.js cli
       - name: Release
         if: github.ref == 'refs/heads/master'
         env:
