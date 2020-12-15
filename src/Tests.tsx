@@ -3,21 +3,18 @@ import {RouteComponentProps} from 'react-router-dom';
 import queryString from "query-string";
 import StatusLink from "./StatusLink";
 import LoadingIndicator from './LoadingIndicator';
+import {TestDefinition} from "./Test";
 
 
-const handleSave = (file: string, exportName: string, cb: (response: {id: number}) => void): Promise<Test[] | void> =>
+const handleSave = (file: string, exportName: string, cb: (response: {id: number}) => void): Promise<TestDefinition[] | void> =>
   fetch(`/test?file=${file}&exportName=${exportName}`, {
       method: 'post',
     })
     .then(r => r.json())
     .then(cb);
 
-type Test = {
-    id: string
-};
-
 const Tests: React.FunctionComponent<RouteComponentProps> = ({history, location: {search}}) => {
-  const [tests, setTests] = useState<Test[]>([]);
+  const [tests, setTests] = useState<TestDefinition[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [testStatuses, setTestStatuses] = useState<{[key: string]: string}>({});
   const {file, exportName} = queryString.parse(search);
@@ -59,7 +56,7 @@ const Tests: React.FunctionComponent<RouteComponentProps> = ({history, location:
             status={testStatuses[t.id]}
             key={t.id}
           >
-            {t.id}
+            {t.name || t.id}
           </StatusLink>
         )}
         {

@@ -79,7 +79,7 @@ const EditRenderWrapperModal: React.FC<EditStepProps> = ({step, onClose, onUpdat
                     {file}.{exportName}
                     {
                       selectedWrapper && selectedWrapper.file === file && selectedWrapper.exportName === exportName &&
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" height="16" width="16" className="ml-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="ml-2 w-5 h-5">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     }
