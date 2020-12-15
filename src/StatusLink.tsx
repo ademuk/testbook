@@ -8,7 +8,7 @@ const stepClassNames: {[key: string]: string} = {
 
 const getClassName = (selected: boolean, active: boolean): string => {
   if (active) {
-    return "bg-gray-800 text-white";
+    return "bg-gray-800 text-white shadow-md";
   }
 
   if (selected) {
@@ -38,7 +38,7 @@ const StatusLink: React.FC<StatusLinkProps> = ({
 }) => (
   <RouterLink
     to={link}
-    className={`flex rounded-lg p-2 px my-2 ${getClassName(selected, active)}`}
+    className={`flex items-center rounded-3xl p-2 my-2 ${getClassName(selected, active)}`}
   >
     <span
       className={`${
@@ -48,8 +48,9 @@ const StatusLink: React.FC<StatusLinkProps> = ({
     />
 
     <div className="flex-grow font-medium px-2">{children}</div>
+
     {subtitle && (
-      <div className="text-xs font-normal text-gray-500 tracking-wide">
+      <div className="text-xs font-normal text-gray-500 tracking-wide mr-2">
         {subtitle}
       </div>
     )}

@@ -1,4 +1,4 @@
-import React, {Fragment, useEffect, useRef, useState} from "react";
+import React, { Fragment, useEffect, useRef, useState } from "react";
 import { Link as RouterLink, RouteComponentProps } from "react-router-dom";
 import type { History } from "history";
 import queryString from "query-string";
@@ -94,6 +94,9 @@ const Test = ({ history, file, exportName, test, step }: TestProps) => {
   const [selectedStepToEdit, setSelectedStepToEdit] = useState<
     StepDefinition
   >();
+  const [isLoadingSideEffects, setIsLoadingSideEffects] = useState<boolean>(
+    false
+  );
   const [
     selectedStepToEditRenderWrapper,
     setSelectedStepToEditRenderWrapper,
@@ -119,6 +122,7 @@ const Test = ({ history, file, exportName, test, step }: TestProps) => {
 
   useEffect(() => {
     if (steps.length) {
+      setIsLoadingSideEffects(true);
       fetch(
         `/test/${test.id}/render/side-effects?file=${file}&exportName=${exportName}&step=${step}`
       )
@@ -126,7 +130,8 @@ const Test = ({ history, file, exportName, test, step }: TestProps) => {
         .then(({ regions, mocks }) => {
           setRegions(regions);
           setMocks(mocks);
-        });
+        })
+        .finally(() => setIsLoadingSideEffects(false));
     }
   }, [file, exportName, test.id, step, steps]);
 
@@ -180,7 +185,7 @@ const Test = ({ history, file, exportName, test, step }: TestProps) => {
   const handleUpdateTestName = (name: string) =>
     fetch(`/test/${test.id}/name?file=${file}&exportName=${exportName}`, {
       method: "put",
-      body: JSON.stringify({name}),
+      body: JSON.stringify({ name }),
       headers: {
         "Content-Type": "application/json",
       },
@@ -218,27 +223,20 @@ const Test = ({ history, file, exportName, test, step }: TestProps) => {
     }
   };
 
-  const handleUpdateTestNameKeyPress = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Enter') {
+  const handleUpdateTestNameKeyPress = (
+    event: React.KeyboardEvent<HTMLDivElement>
+  ) => {
+    if (event.key === "Enter") {
       event.preventDefault();
       (event.target as HTMLDivElement)?.blur();
     }
   };
 
   return (
-    <div className="bg-white flex">
-      <div className="md:w-1/2 p-6">
-        <div className="flex items-center text-gray-700 text-lg font-semibold py-2">
-          {file}
-          /
-          <RouterLink
-            to={`/tests/?file=${file}&exportName=${exportName}`}
-            className="underline"
-          >
-            {exportName}
-          </RouterLink>
-          /
-          <div
+    <div className="flex">
+      <div className="md:w-1/2 p-3">
+        <div className="px-6 py-2 flex items-center text-gray-700 text-2xl font-semibold">
+          <h1
             contentEditable={true}
             onBlur={(event) => {
               const name = (event.target as HTMLDivElement).textContent;
@@ -248,14 +246,17 @@ const Test = ({ history, file, exportName, test, step }: TestProps) => {
             ref={editableTestNameRef}
           >
             {testName}
-          </div>{" "}
+          </h1>{" "}
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
             className="w-5 h-5 ml-2 cursor-pointer"
-            onClick={() => editableTestNameRef.current && focusAndSelect(editableTestNameRef.current)}
+            onClick={() =>
+              editableTestNameRef.current &&
+              focusAndSelect(editableTestNameRef.current)
+            }
           >
             <path
               strokeLinecap="round"
@@ -266,40 +267,60 @@ const Test = ({ history, file, exportName, test, step }: TestProps) => {
           </svg>
         </div>
 
-        {!!regions.length &&
-          Object.entries(regionsByType).map(([type, regions]) => (
-            <Fragment key={`${type}`}>
-              <h3>{capitalise(type)}</h3>
-              {regions.map((r) => (
-                <button
-                  className={`block font-medium text-gray-700 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-2 my-2 focus:rounded-lg w-full text-left`}
-                  key={`${r.xpath}${r.text}`}
-                  onClick={() => setSelectedRegion(r)}
-                >
-                  {r.text + (r.unique ? "" : " (not unique)")}
-                </button>
-              ))}
-            </Fragment>
-          ))}
+        <h2 className="px-6 pb-2 flex items-center text-gray-700 font-semibold">
+          {file} /
+          <RouterLink
+            to={`/tests/?file=${file}&exportName=${exportName}`}
+            className="underline ml-1"
+          >
+            {exportName}
+          </RouterLink>
+        </h2>
 
-        {!!mocks.length &&
-          mocks.map(
-            ({ name, calls }, i) =>
-              !!calls.length && (
-                <Fragment key={`${name}${i}`}>
-                  <h3>{label(name)}</h3>
-                  {calls.map((args, i) => (
-                    <button
-                      className={`block font-medium text-gray-700 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-2 my-2 focus:rounded-lg w-full text-left`}
-                      key={[i, ...args].join("")}
-                      onClick={() => setSelectedMockCall([name, args])}
-                    >
-                      {renderMockCallArgsLabel(args)}
-                    </button>
-                  ))}
-                </Fragment>
-              )
-          )}
+        {isLoadingSideEffects && (
+          <LoadingIndicator>Rendering...</LoadingIndicator>
+        )}
+
+        {!!regions.length && !isLoadingSideEffects && (
+          <div className="w-full p-3 m-3 bg-white shadow-md rounded-2xl">
+            {Object.entries(regionsByType).map(([type, regions]) => (
+              <Fragment key={`${type}`}>
+                <h3 className="text-xl p-2">{capitalise(type)}</h3>
+                {regions.map((r) => (
+                  <button
+                    className={`text-gray-700 hover:text-gray-600 hover:bg-gray-100 p-2 px-4 my-2 rounded-full focus:rounded-full w-full text-left`}
+                    key={`${r.xpath}${r.text}`}
+                    onClick={() => setSelectedRegion(r)}
+                  >
+                    {r.text + (r.unique ? "" : " (not unique)")}
+                  </button>
+                ))}
+              </Fragment>
+            ))}
+          </div>
+        )}
+
+        {!!mocks.filter(({calls}) => calls.length).length && !isLoadingSideEffects && (
+          <div className="w-full p-3 m-3 bg-white shadow-md rounded-2xl">
+            {mocks.filter(({calls}) => calls.length).map(
+              ({ name, calls }, i) =>
+                (
+                  <Fragment key={`${name}${i}`}>
+                    <h3 className="text-xl p-2">{label(name)}</h3>
+                    {calls.map((args, i) => (
+                      <button
+                        className={`text-gray-700 hover:text-gray-600 hover:bg-gray-100 p-2 my-2 rounded-full focus:rounded-full w-full text-left`}
+                        key={[i, ...args].join("")}
+                        onClick={() => setSelectedMockCall([name, args])}
+                      >
+                        {renderMockCallArgsLabel(args)}
+                      </button>
+                    ))}
+                  </Fragment>
+                )
+            )}
+          </div>
+        )}
 
         {selectedRegion && (
           <SelectedRegionModal
@@ -355,7 +376,7 @@ const Test = ({ history, file, exportName, test, step }: TestProps) => {
           />
         )}
       </div>
-      <div className="md:w-1/2 p-6">
+      <div className="md:w-1/2 p-6 pl-8">
         <div className="my-2">
           {steps.map((s, i) => (
             <Step
