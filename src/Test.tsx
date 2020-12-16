@@ -282,7 +282,7 @@ const Test = ({ history, file, exportName, test, step }: TestProps) => {
         )}
 
         {!!regions.length && !isLoadingSideEffects && (
-          <div className="w-full p-3 m-3 bg-white shadow-md rounded-2xl">
+          <div className="p-3 m-3 bg-white shadow-md rounded-2xl">
             {Object.entries(regionsByType).map(([type, regions]) => (
               <Fragment key={`${type}`}>
                 <h3 className="text-xl p-2">{capitalise(type)}</h3>
@@ -301,7 +301,7 @@ const Test = ({ history, file, exportName, test, step }: TestProps) => {
         )}
 
         {!!mocks.filter(({calls}) => calls.length).length && !isLoadingSideEffects && (
-          <div className="w-full p-3 m-3 bg-white shadow-md rounded-2xl">
+          <div className="p-3 m-3 bg-white shadow-md rounded-2xl">
             {mocks.filter(({calls}) => calls.length).map(
               ({ name, calls }, i) =>
                 (
@@ -309,7 +309,7 @@ const Test = ({ history, file, exportName, test, step }: TestProps) => {
                     <h3 className="text-xl p-2">{label(name)}</h3>
                     {calls.map((args, i) => (
                       <button
-                        className={`text-gray-700 hover:text-gray-600 hover:bg-gray-100 p-2 my-2 rounded-full focus:rounded-full w-full text-left`}
+                        className={`text-gray-700 hover:text-gray-600 hover:bg-gray-100 p-2 my-2 rounded-full focus:rounded-full text-left`}
                         key={[i, ...args].join("")}
                         onClick={() => setSelectedMockCall([name, args])}
                       >
@@ -376,7 +376,7 @@ const Test = ({ history, file, exportName, test, step }: TestProps) => {
           />
         )}
       </div>
-      <div className="md:w-1/2 p-6 pl-8">
+      <div className="md:w-1/2 p-6 pl-1">
         <div className="my-2">
           {steps.map((s, i) => (
             <Step

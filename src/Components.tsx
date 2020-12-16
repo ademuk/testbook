@@ -16,7 +16,7 @@ type ModuleDefinition = {
 };
 
 const Module = ({ file, components }: ModuleDefinition) => (
-  <div className="w-full p-3 mx-3 my-4 bg-white shadow-md rounded-2xl">
+  <div className="p-3 mx-3 my-4 bg-white shadow-md rounded-2xl">
     <div className="text-gray-700 text-lg font-semibold py-2 px-2">{file}</div>
 
     {components.map((c) => (
@@ -177,7 +177,7 @@ export default function Components() {
         />
       ))}
       {testsStatus === LoadingStatus.loaded && !moduleTests.length && (
-        <div className="w-full p-4 m-3 bg-white shadow-md rounded-2xl text-gray-700 text-lg">
+        <div className="p-4 m-3 bg-white shadow-md rounded-2xl text-gray-700 text-lg">
           You don't have any tests yet
         </div>
       )}

@@ -58,13 +58,13 @@ const Tests: React.FunctionComponent<RouteComponentProps> = ({
       </h1>
 
       {!tests.length && (
-        <div className="w-full p-4 m-3 bg-white shadow-md rounded-2xl text-gray-700 text-lg">
+        <div className="p-4 m-3 bg-white shadow-md rounded-2xl text-gray-700 text-lg">
           You don't have any tests yet
         </div>
       )}
 
       {!!tests.length && (
-        <div className="w-full p-3 mx-3 my-4 bg-white shadow-md rounded-2xl">
+        <div className="p-3 mx-3 my-4 bg-white shadow-md rounded-2xl">
           {tests.map((t) => (
             <StatusLink
               link={`/tests/${t.id}?file=${file}&exportName=${exportName}`}
