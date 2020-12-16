@@ -27,7 +27,8 @@
                 "target": "Link Label"
               }
             }
-          ]
+          ],
+          "name": "Render label"
         },
         {
           "id": "07587430-2f62-11eb-be29-f9da4f954b09",
@@ -54,7 +55,8 @@
                 "target": "Subtitle label"
               }
             }
-          ]
+          ],
+          "name": "Render subtitle label"
         }
       ]
     }

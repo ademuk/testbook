@@ -177,10 +177,8 @@ export default function Components() {
         />
       ))}
       {testsStatus === LoadingStatus.loaded && !moduleTests.length && (
-        <div className="w-full p-3 py-2 m-3 bg-white shadow-md rounded-2xl">
-          <div className="text-gray-700 text-lg py-2 px-2">
-            You don't have any tests yet
-          </div>
+        <div className="w-full p-4 m-3 bg-white shadow-md rounded-2xl text-gray-700 text-lg">
+          You don't have any tests yet
         </div>
       )}
       {modulesStatus === LoadingStatus.loading && (

@@ -145,7 +145,8 @@
                 "target": "Look for other components"
               }
             }
-          ]
+          ],
+          "name": "Render project components"
         }
       ]
     }

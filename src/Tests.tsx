@@ -57,18 +57,25 @@ const Tests: React.FunctionComponent<RouteComponentProps> = ({
         {file} / {exportName}
       </h1>
 
-      <div className="w-full p-3 mx-3 my-4 bg-white shadow-md rounded-2xl">
-        {tests.map((t) => (
-          <StatusLink
-            link={`/tests/${t.id}?file=${file}&exportName=${exportName}`}
-            status={testStatuses[t.id]}
-            key={t.id}
-          >
-            {t.name || t.id}
-          </StatusLink>
-        ))}
-        {!tests.length && <div>No tests yet</div>}
-      </div>
+      {!tests.length && (
+        <div className="w-full p-4 m-3 bg-white shadow-md rounded-2xl text-gray-700 text-lg">
+          You don't have any tests yet
+        </div>
+      )}
+
+      {!!tests.length && (
+        <div className="w-full p-3 mx-3 my-4 bg-white shadow-md rounded-2xl">
+          {tests.map((t) => (
+            <StatusLink
+              link={`/tests/${t.id}?file=${file}&exportName=${exportName}`}
+              status={testStatuses[t.id]}
+              key={t.id}
+            >
+              {t.name || t.id}
+            </StatusLink>
+          ))}
+        </div>
+      )}
 
       <div className="flex justify-center">
         <button
