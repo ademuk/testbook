@@ -371,7 +371,7 @@ const writeFile = (file, payload) =>
       `${file}.tests.json`,
       JSON.stringify(payload, null, 2),
       err => {
-        err ? reject() : resolve();
+        err ? reject() : resolve(payload);
       }
     )
   );
@@ -416,9 +416,9 @@ const createTest = (file, exportName) => {
     .then(() => test)
 };
 
-const testWithUpdatedSteps = (test, steps) => ({
+const updatedTest = (test, updates) => ({
   ...test,
-  steps
+  ...updates
 });
 
 const componentWithAddedTest = (component, test) => ({
@@ -433,32 +433,33 @@ const fileJsonWithAddedTest = (fileJson, exportName, test) => ({
   )
 });
 
-const componentWithUpdatedTest = (component, testId, steps) => ({
+const componentWithUpdatedTest = (component, testId, testUpdates) => ({
   ...component,
-  tests: component.tests.map(t => t.id === testId ? testWithUpdatedSteps(t, steps) : t)
+  tests: component.tests.map(t => t.id === testId ? updatedTest(t, testUpdates) : t)
 });
 
-const fileJsonWithUpdatedComponent = (fileJson, exportName, testId, steps) => ({
+const fileJsonWithUpdatedTest = (fileJson, exportName, testId, testUpdates) => ({
   ...fileJson,
   components: fileJson.components.map(c =>
-    c.name === exportName ? componentWithUpdatedTest(c, testId, steps) : c
+    c.name === exportName ? componentWithUpdatedTest(c, testId, testUpdates) : c
   )
 });
 
+
+const updateTestName = (file, exportName, testId, name) =>
+  getTestFile(file)
+    .then(fileJson =>
+      writeFile(file, fileJsonWithUpdatedTest(fileJson, exportName, testId, {name}))
+    );
+
 const updateTestSteps = (file, exportName, testId, steps) =>
   getTestFile(file)
-    .then(fileJson => {
-      const payload = fileJsonWithUpdatedComponent(fileJson, exportName, testId, steps);
-      return new Promise((resolve, reject) => {
-        fs.writeFile(
-          `${file}.tests.json`,
-          JSON.stringify(payload, null, 2),
-          (err) => {
-            err ? reject() : resolve(payload);
-          }
-        );
-      })
-    });
+    .then(fileJson =>
+      writeFile(
+        file,
+        fileJsonWithUpdatedTest(fileJson, exportName, testId, {steps})
+      )
+    );
 
 class RenderError extends Error {
   public componentStack?: string;
@@ -772,6 +773,16 @@ app.put(
     updateTestSteps(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName, req.params.testId, req.body)
       .then(
         testSteps => res.send(testSteps)
+      )
+      .catch(next)
+);
+
+app.put(
+  '/test/:testId/name',
+  (req, res, next) =>
+    updateTestName(path.join(SEARCH_PATH, (req.query.file as string)), req.query.exportName, req.params.testId, req.body.name)
+      .then(
+        test => res.send(test)
       )
       .catch(next)
 );

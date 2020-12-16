@@ -18,7 +18,7 @@
     "react-json-editor-ajrm": "^2.5.13",
     "react-router-dom": "^5.1.2",
     "react-scripts": "^3.4.3",
-    "tailwindcss": "^1.4.6",
+    "tailwindcss": "1.9.0",
     "ts-loader": "^8.0.7",
     "ts-morph": "^8.1.2",
     "typescript": "^4.0.3",

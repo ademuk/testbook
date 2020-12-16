@@ -1,17 +1,22 @@
-import React, { Fragment, useEffect, useState } from "react";
+import React, { Fragment, useEffect, useRef, useState } from "react";
 import { Link as RouterLink, RouteComponentProps } from "react-router-dom";
 import type { History } from "history";
 import queryString from "query-string";
 import SelectedRegionModal from "./test/SelectedRegionModal";
-import SelectedMockCallModal, {renderMockCallArgsLabel} from "./test/SelectedMockCallModal";
+import SelectedMockCallModal, {
+  renderMockCallArgsLabel,
+} from "./test/SelectedMockCallModal";
 import EditRenderPropsModal from "./test/EditRenderPropsModal";
 import Step from "./test/Step";
-import EditMockModal, {EditStepProps} from "./test/EditMockModal";
+import EditMockModal, { EditStepProps } from "./test/EditMockModal";
 import EditRenderWrapperModal from "./test/EditRenderWrapperModal";
 import StepResultModal from "./test/StepResultModal";
 import LoadingIndicator from "./LoadingIndicator";
 
-const groupBy = <T, K extends keyof any>(items: T[], getKey: (item: T) => K): {[key: string]: T[]} =>
+const groupBy = <T, K extends keyof any>(
+  items: T[],
+  getKey: (item: T) => K
+): { [key: string]: T[] } =>
   items.reduce(
     (prev, curr) => ({
       ...prev,
@@ -32,16 +37,16 @@ const label = (text: string) =>
 
 export type TestDefinition = {
   id: string;
+  name?: string;
   steps: StepDefinition[];
 };
 
 export type StepDefinition = {
   type: string;
   definition: {
-    [key: string]: any
-  }
+    [key: string]: any;
+  };
 };
-
 
 export type StepError = {
   name: string;
@@ -52,8 +57,8 @@ export type StepError = {
 
 export type StepResult = {
   result: string;
-  error?: StepError
-}
+  error?: StepError;
+};
 
 export type RegionDefinition = {
   text: string;
@@ -66,36 +71,48 @@ type MockCallArgs = any[];
 
 export type MockCalls = {
   name: string;
-  calls: MockCallArgs[]
+  calls: MockCallArgs[];
 };
 
-export type MockCall = [
-  string,
-  MockCallArgs
-];
+export type MockCall = [string, MockCallArgs];
 
 type TestProps = {
   history: History;
-  file: string,
+  file: string;
   exportName: string;
   test: TestDefinition;
   step: number;
-}
+};
 
-const Test = ({history, file, exportName, test, step}: TestProps) => {
+const Test = ({ history, file, exportName, test, step }: TestProps) => {
   const [steps, setSteps] = useState<StepDefinition[]>([]);
   const [stepResults, setStepResults] = useState<StepResult[]>([]);
   const [mocks, setMocks] = useState<MockCalls[]>([]);
   const [regions, setRegions] = useState<RegionDefinition[]>([]);
   const [selectedRegion, setSelectedRegion] = useState<RegionDefinition>();
   const [selectedMockCall, setSelectedMockCall] = useState<MockCall>();
-  const [selectedStepToEdit, setSelectedStepToEdit] = useState<StepDefinition>();
-  const [selectedStepToEditRenderWrapper, setSelectedStepToEditRenderWrapper] = useState<StepDefinition>();
-  const [selectedStepResult, setSelectedStepResult] = useState<[StepDefinition, StepResult]>();
+  const [selectedStepToEdit, setSelectedStepToEdit] = useState<
+    StepDefinition
+  >();
+  const [isLoadingSideEffects, setIsLoadingSideEffects] = useState<boolean>(
+    false
+  );
+  const [
+    selectedStepToEditRenderWrapper,
+    setSelectedStepToEditRenderWrapper,
+  ] = useState<StepDefinition>();
+  const [selectedStepResult, setSelectedStepResult] = useState<
+    [StepDefinition, StepResult]
+  >();
+  const editableTestNameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (test && step > steps.length - 1) {
-      history.replace(`/tests/${test.id}?file=${file}&exportName=${exportName}&step=${test.steps.length - 1}`);
+      history.replace(
+        `/tests/${test.id}?file=${file}&exportName=${exportName}&step=${
+          test.steps.length - 1
+        }`
+      );
     }
   }, [history, file, exportName, test, steps, step]);
 
@@ -105,6 +122,7 @@ const Test = ({history, file, exportName, test, step}: TestProps) => {
 
   useEffect(() => {
     if (steps.length) {
+      setIsLoadingSideEffects(true);
       fetch(
         `/test/${test.id}/render/side-effects?file=${file}&exportName=${exportName}&step=${step}`
       )
@@ -113,6 +131,7 @@ const Test = ({history, file, exportName, test, step}: TestProps) => {
           setRegions(regions);
           setMocks(mocks);
         })
+        .finally(() => setIsLoadingSideEffects(false));
     }
   }, [file, exportName, test.id, step, steps]);
 
@@ -143,7 +162,9 @@ const Test = ({history, file, exportName, test, step}: TestProps) => {
       setSelectedMockCall(undefined);
 
       history.push(
-        `/tests/${test.id}?file=${file}&exportName=${exportName}&step=${step + 1}`
+        `/tests/${test.id}?file=${file}&exportName=${exportName}&step=${
+          step + 1
+        }`
       );
     });
   };
@@ -161,11 +182,21 @@ const Test = ({history, file, exportName, test, step}: TestProps) => {
       setSelectedStepToEdit(undefined)
     );
 
-  const handleEditRenderWrapperStep = (stepToUpdate: StepDefinition, idx: number) => {
+  const handleUpdateTestName = (name: string) =>
+    fetch(`/test/${test.id}/name?file=${file}&exportName=${exportName}`, {
+      method: "put",
+      body: JSON.stringify({ name }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+  const handleEditRenderWrapperStep = (
+    stepToUpdate: StepDefinition,
+    idx: number
+  ) => {
     setSelectedStepToEditRenderWrapper(stepToUpdate);
-    save(
-      steps.map((s, i) => (i === idx ? stepToUpdate : s))
-    ).then(() =>
+    save(steps.map((s, i) => (i === idx ? stepToUpdate : s))).then(() =>
       setSelectedStepToEdit(undefined)
     );
   };
@@ -180,56 +211,123 @@ const Test = ({history, file, exportName, test, step}: TestProps) => {
   const EditModalComponent =
     selectedStepToEdit && editStepComponents[selectedStepToEdit.type];
 
+  const testName = test && (test.name || test.id);
+
+  const focusAndSelect = (el: HTMLInputElement) => {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const selection: Selection | null = window.getSelection();
+    if (selection) {
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+  };
+
+  const handleUpdateTestNameKeyPress = (
+    event: React.KeyboardEvent<HTMLDivElement>
+  ) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      (event.target as HTMLDivElement)?.blur();
+    }
+  };
+
   return (
-    <div className="bg-white flex">
-      <div className="md:w-1/2 p-6">
-        <div className="block text-gray-700 text-lg font-semibold py-2">
-          {file} /{" "}
-          <RouterLink
-            to={`/tests/?file=${file}&exportName=${exportName}`}
-            className="underline"
+    <div className="flex">
+      <div className="md:w-1/2 p-3">
+        <div className="px-6 py-2 flex items-center text-gray-700 text-2xl font-semibold">
+          <h1
+            contentEditable={true}
+            onBlur={(event) => {
+              const name = (event.target as HTMLDivElement).textContent;
+              name && handleUpdateTestName(name);
+            }}
+            onKeyPress={handleUpdateTestNameKeyPress}
+            ref={editableTestNameRef}
           >
-            {exportName}
-          </RouterLink>{" "}
-          / Test {test && test.id}
+            {testName}
+          </h1>{" "}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            className="w-5 h-5 ml-2 cursor-pointer"
+            onClick={() =>
+              editableTestNameRef.current &&
+              focusAndSelect(editableTestNameRef.current)
+            }
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+            />
+          </svg>
         </div>
 
-        {!!regions.length &&
-        Object.entries(regionsByType).map(([type, regions]) => (
-          <Fragment key={`${type}`}>
-            <h3>{capitalise(type)}</h3>
-            {regions.map((r) => (
-              <button
-                className={`block font-medium text-gray-700 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-2 my-2 focus:rounded-lg w-full text-left`}
-                key={`${r.xpath}${r.text}`}
-                onClick={() => setSelectedRegion(r)}
-              >
-                {r.text + (r.unique ? "" : " (not unique)")}
-              </button>
-            ))}
-          </Fragment>
-        ))}
+        <h2 className="px-6 pb-2 flex items-center text-gray-700 font-semibold">
+          {file} /
+          <RouterLink
+            to={`/tests/?file=${file}&exportName=${exportName}`}
+            className="underline ml-1"
+          >
+            {exportName}
+          </RouterLink>
+        </h2>
 
-        {!!mocks.length &&
-        mocks.map(({ name, calls }, i) => (
-          !!calls.length && (<Fragment key={`${name}${i}`}>
-            <h3>{label(name)}</h3>
-            {calls.map((args, i) => (
-              <button
-                className={`block font-medium text-gray-700 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-2 my-2 focus:rounded-lg w-full text-left`}
-                key={[i, ...args].join('')}
-                onClick={() => setSelectedMockCall([name, args])}
-              >
-                {renderMockCallArgsLabel(args)}
-              </button>
+        {isLoadingSideEffects && (
+          <LoadingIndicator>Rendering...</LoadingIndicator>
+        )}
+
+        {!!regions.length && !isLoadingSideEffects && (
+          <div className="w-full p-3 m-3 bg-white shadow-md rounded-2xl">
+            {Object.entries(regionsByType).map(([type, regions]) => (
+              <Fragment key={`${type}`}>
+                <h3 className="text-xl p-2">{capitalise(type)}</h3>
+                {regions.map((r) => (
+                  <button
+                    className={`text-gray-700 hover:text-gray-600 hover:bg-gray-100 p-2 px-4 my-2 rounded-full focus:rounded-full w-full text-left`}
+                    key={`${r.xpath}${r.text}`}
+                    onClick={() => setSelectedRegion(r)}
+                  >
+                    {r.text + (r.unique ? "" : " (not unique)")}
+                  </button>
+                ))}
+              </Fragment>
             ))}
-          </Fragment>)
-        ))}
+          </div>
+        )}
+
+        {!!mocks.filter(({calls}) => calls.length).length && !isLoadingSideEffects && (
+          <div className="w-full p-3 m-3 bg-white shadow-md rounded-2xl">
+            {mocks.filter(({calls}) => calls.length).map(
+              ({ name, calls }, i) =>
+                (
+                  <Fragment key={`${name}${i}`}>
+                    <h3 className="text-xl p-2">{label(name)}</h3>
+                    {calls.map((args, i) => (
+                      <button
+                        className={`text-gray-700 hover:text-gray-600 hover:bg-gray-100 p-2 my-2 rounded-full focus:rounded-full w-full text-left`}
+                        key={[i, ...args].join("")}
+                        onClick={() => setSelectedMockCall([name, args])}
+                      >
+                        {renderMockCallArgsLabel(args)}
+                      </button>
+                    ))}
+                  </Fragment>
+                )
+            )}
+          </div>
+        )}
 
         {selectedRegion && (
           <SelectedRegionModal
             region={selectedRegion}
-              onSelect={(stepToAdd: StepDefinition) => handleAddStep(stepToAdd, step + 1)}
+            onSelect={(stepToAdd: StepDefinition) =>
+              handleAddStep(stepToAdd, step + 1)
+            }
             onClose={() => setSelectedRegion(undefined)}
           />
         )}
@@ -260,7 +358,10 @@ const Test = ({history, file, exportName, test, step}: TestProps) => {
           <EditRenderWrapperModal
             step={selectedStepToEditRenderWrapper}
             onUpdateStep={(updatedStep: StepDefinition) =>
-              handleEditRenderWrapperStep(updatedStep, steps.indexOf(selectedStepToEditRenderWrapper))
+              handleEditRenderWrapperStep(
+                updatedStep,
+                steps.indexOf(selectedStepToEditRenderWrapper)
+              )
             }
             onClose={() => setSelectedStepToEditRenderWrapper(undefined)}
             file={file}
@@ -268,28 +369,30 @@ const Test = ({history, file, exportName, test, step}: TestProps) => {
           />
         )}
 
-        {selectedStepResult &&
+        {selectedStepResult && (
           <StepResultModal
             stepAndResult={selectedStepResult}
             onClose={() => setSelectedStepResult(undefined)}
           />
-        }
+        )}
       </div>
-      <div className="md:w-1/2 p-6">
+      <div className="md:w-1/2 p-6 pl-8">
         <div className="my-2">
           {steps.map((s, i) => (
             <Step
               step={s}
               result={stepResults[i] || {}}
-              selected={
-                i <= (step === null ? stepResults.length - 1 : step)
-              }
+              selected={i <= (step === null ? stepResults.length - 1 : step)}
               active={i === step}
               link={`/tests/${test.id}?file=${file}&exportName=${exportName}&step=${i}`}
               onDelete={() => handleDeleteStep(i)}
               onEdit={() => setSelectedStepToEdit(steps[i])}
               onEditWrapper={() => setSelectedStepToEditRenderWrapper(steps[i])}
-              onResultClick={(stepResults[i] && stepResults[i].result  === 'error') ? (() => setSelectedStepResult([s, stepResults[i]])) : undefined}
+              onResultClick={
+                stepResults[i] && stepResults[i].result === "error"
+                  ? () => setSelectedStepResult([s, stepResults[i]])
+                  : undefined
+              }
               key={i}
             />
           ))}
@@ -298,7 +401,6 @@ const Test = ({history, file, exportName, test, step}: TestProps) => {
     </div>
   );
 };
-
 
 type RouteParams = {
   testId: string;
@@ -318,7 +420,11 @@ const TestRoute = ({
 
   useEffect(() => {
     if (test && step === null) {
-      history.replace(`/tests/${test.id}?file=${file}&exportName=${exportName}&step=${test.steps.length - 1}`);
+      history.replace(
+        `/tests/${test.id}?file=${file}&exportName=${exportName}&step=${
+          test.steps.length - 1
+        }`
+      );
     }
   }, [history, file, exportName, test, step]);
 
@@ -328,18 +434,24 @@ const TestRoute = ({
       .then(setTest);
   }, [testId, file, exportName]);
 
-  if (typeof file != 'string' || typeof exportName != 'string') {
-    history.replace('/');
+  if (typeof file != "string" || typeof exportName != "string") {
+    history.replace("/");
     return null;
   }
 
   if (!test || step === null) {
-    return <LoadingIndicator>Loading test...</LoadingIndicator>
+    return <LoadingIndicator>Loading test...</LoadingIndicator>;
   }
 
   return (
-    <Test history={history} file={file} exportName={exportName} test={test} step={step} />
-  )
+    <Test
+      history={history}
+      file={file}
+      exportName={exportName}
+      test={test}
+      step={step}
+    />
+  );
 };
 
 export default TestRoute;
