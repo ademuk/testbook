@@ -1,19 +1,14 @@
-import {findModuleTests, runComponentTest, serialiseError} from "./server";
+import {findModuleTests, LoadedModule, ResultsAndContext, runComponentTest, serialiseError} from "./server";
 import path from "path";
+import {promiseSequence} from "./promise";
 
 const SEARCH_PATH = './src';
 
-const PromiseSequence = (tasks) =>
-  tasks.reduce((promiseChain, currentTask) =>
-    promiseChain.then(chainResults =>
-      currentTask.then(currentResult =>
-        [ ...chainResults, currentResult ]
-      )
-    ), Promise.resolve([]));
+type TestRunnerResult = {result: string, error?: string};
 
-const runComponentTests = (file: string, component: any) =>
-  PromiseSequence(
-    component.tests.map((test) =>
+const runComponentTests = (file: string, component: any): Promise<TestRunnerResult[]> =>
+  promiseSequence<ResultsAndContext>(
+    component.tests.map((test) => () =>
       runComponentTest(path.join(SEARCH_PATH, file), component.exportName, test.id)
         .then(
           ([results]) => results.map(
@@ -27,15 +22,15 @@ const runComponentTests = (file: string, component: any) =>
 export const runner = () =>
   findModuleTests(SEARCH_PATH)
     .then(
-      moduleComponentTests => PromiseSequence(
-        moduleComponentTests.map(({file, components}) =>
-          PromiseSequence(
-            components.map((component) => runComponentTests(file, component))
+      (moduleComponentTests: LoadedModule[]) => promiseSequence<TestRunnerResult[][]>(
+        moduleComponentTests.map(({file, components}) => () =>
+          promiseSequence<TestRunnerResult[]>(
+            components.map((component) => () => runComponentTests(file, component))
           )
         )
       )
     )
-    .then(results => {
+    .then((results: TestRunnerResult[][]) => {
       const errors = results.flat(3).filter(({result}) => result === 'error');
       if (errors.length) {
         console.error(errors);

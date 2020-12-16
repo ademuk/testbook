@@ -5,6 +5,10 @@
     "target": "es6",
     "moduleResolution": "node",
     "sourceMap": true,
-    "outDir": "build"
+    "outDir": "build",
+    "lib": [
+      "es2019",
+      "DOM"
+    ]
   }
 }

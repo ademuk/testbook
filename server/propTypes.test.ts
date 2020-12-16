@@ -1,7 +1,7 @@
 const PropTypes = require("prop-types");
 const {inferPropTypes} = require("./propTypes");
 
-describe('server', () => {
+describe('propTypes', () => {
 
   class Message {}
 
