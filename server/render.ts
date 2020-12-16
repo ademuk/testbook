@@ -24,14 +24,14 @@ class ErrorBoundary extends React.Component<{}, State> {
     super(props);
 
     this.state = {
-      error: null
+      error: null,
     };
   }
 
   static getDerivedStateFromError(error) {
     return {
-      error
-    }
+      error,
+    };
   }
 
   componentDidCatch(error, errorInfo) {
@@ -46,31 +46,32 @@ class ErrorBoundary extends React.Component<{}, State> {
 const getWrapperComponent = () => {
   if (window.wrapperExportName) {
     // @ts-ignore
-    return import("wrapper").then((module) => module[window.wrapperExportName])
+    return import("wrapper").then((module) => module[window.wrapperExportName]);
   }
 
   return Promise.resolve();
 };
 
-window.result = getWrapperComponent()
-  .then((WrapperComponent) => {
-    act(() => {
-      ReactDOM.render(
-        React.createElement(
-          ErrorBoundary,
-          null,
-          WrapperComponent ? React.createElement(
-            WrapperComponent,
-            window.wrapperProps,
-            React.createElement(Component, window.props)
-          ) : React.createElement(Component, window.props)
-        ),
-        window.container,
-        () => {
-          if (window.error) {
-            throw window.error;
-          }
+window.result = getWrapperComponent().then((WrapperComponent) => {
+  act(() => {
+    ReactDOM.render(
+      React.createElement(
+        ErrorBoundary,
+        null,
+        WrapperComponent
+          ? React.createElement(
+              WrapperComponent,
+              window.wrapperProps,
+              React.createElement(Component, window.props)
+            )
+          : React.createElement(Component, window.props)
+      ),
+      window.container,
+      () => {
+        if (window.error) {
+          throw window.error;
         }
-      );
-    })
+      }
+    );
   });
+});

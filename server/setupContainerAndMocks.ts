@@ -1,4 +1,4 @@
-import {Mock, setupMocks} from "./mocks";
+import { Mock, setupMocks } from "./mocks";
 
 declare global {
   interface Window {
@@ -7,7 +7,7 @@ declare global {
   }
 }
 
-const container = document.createElement('div');
+const container = document.createElement("div");
 
 document.body.appendChild(container);
 

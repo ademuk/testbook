@@ -10,9 +10,7 @@
               "type": "mock",
               "definition": {
                 "name": "fetch",
-                "args": [
-                  "/module-test"
-                ],
+                "args": ["/module-test"],
                 "return": [
                   {
                     "file": "App.tsx",
@@ -27,9 +25,7 @@
                                 "type": "mock",
                                 "definition": {
                                   "name": "fetch",
-                                  "args": [
-                                    "/module-component"
-                                  ],
+                                  "args": ["/module-component"],
                                   "return": []
                                 }
                               },
@@ -66,9 +62,7 @@
                                 "type": "mock",
                                 "definition": {
                                   "name": "fetch",
-                                  "args": [
-                                    "/module-test"
-                                  ],
+                                  "args": ["/module-test"],
                                   "return": null
                                 }
                               },

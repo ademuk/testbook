@@ -11,7 +11,7 @@ import { JSDOM, VirtualConsole } from "jsdom";
 import webpack from "webpack";
 import { getTsPropTypes } from "./propTypes";
 import openBrowser from "react-dev-utils/openBrowser";
-import {promiseBatch} from "./promise";
+import { promiseBatch } from "./promise";
 
 const hostNodeModulesPath = path.join(process.cwd(), "node_modules");
 const { act } = require(path.join(hostNodeModulesPath, "react-dom/test-utils"));
@@ -72,9 +72,10 @@ const findModulesWithComponents = (
           return reject(err);
         }
 
-        (promiseBatch<LoadedModule>(files.map((file) => () => loadModuleWithComponents(file)), 3) as Promise<
-          LoadedModule[]
-        >)
+        (promiseBatch<LoadedModule>(
+          files.map((file) => () => loadModuleWithComponents(file)),
+          3
+        ) as Promise<LoadedModule[]>)
           .then((m) =>
             m
               .filter((m) => !m.error && m.components.length)

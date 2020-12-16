@@ -1,6 +1,6 @@
 import React from "react";
 
-const LoadingIndicator: React.FC = ({children}) => (
+const LoadingIndicator: React.FC = ({ children }) => (
   <div className="flex h-full">
     <div className="m-auto text-center">
       <div className="inline-block loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-16 w-16" />
@@ -9,4 +9,4 @@ const LoadingIndicator: React.FC = ({children}) => (
   </div>
 );
 
-export default LoadingIndicator
+export default LoadingIndicator;

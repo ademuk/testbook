@@ -91,9 +91,10 @@ const Test = ({ history, file, exportName, test, step }: TestProps) => {
   const [regions, setRegions] = useState<RegionDefinition[]>([]);
   const [selectedRegion, setSelectedRegion] = useState<RegionDefinition>();
   const [selectedMockCall, setSelectedMockCall] = useState<MockCall>();
-  const [selectedStepToEdit, setSelectedStepToEdit] = useState<
-    StepDefinition
-  >();
+  const [
+    selectedStepToEdit,
+    setSelectedStepToEdit,
+  ] = useState<StepDefinition>();
   const [isLoadingSideEffects, setIsLoadingSideEffects] = useState<boolean>(
     false
   );
@@ -300,11 +301,12 @@ const Test = ({ history, file, exportName, test, step }: TestProps) => {
           </div>
         )}
 
-        {!!mocks.filter(({calls}) => calls.length).length && !isLoadingSideEffects && (
-          <div className="p-3 m-3 bg-white shadow-md rounded-2xl">
-            {mocks.filter(({calls}) => calls.length).map(
-              ({ name, calls }, i) =>
-                (
+        {!!mocks.filter(({ calls }) => calls.length).length &&
+          !isLoadingSideEffects && (
+            <div className="p-3 m-3 bg-white shadow-md rounded-2xl">
+              {mocks
+                .filter(({ calls }) => calls.length)
+                .map(({ name, calls }, i) => (
                   <Fragment key={`${name}${i}`}>
                     <h3 className="text-xl p-2">{label(name)}</h3>
                     {calls.map((args, i) => (
@@ -317,10 +319,9 @@ const Test = ({ history, file, exportName, test, step }: TestProps) => {
                       </button>
                     ))}
                   </Fragment>
-                )
-            )}
-          </div>
-        )}
+                ))}
+            </div>
+          )}
 
         {selectedRegion && (
           <SelectedRegionModal

@@ -1,7 +1,7 @@
 import React from "react";
 import { Link as RouterLink } from "react-router-dom";
 
-const stepClassNames: {[key: string]: string} = {
+const stepClassNames: { [key: string]: string } = {
   success: "bg-green-400",
   error: "bg-red-400",
 };
@@ -24,7 +24,7 @@ type StatusLinkProps = {
   active?: boolean;
   subtitle?: string;
   status?: string;
-  onResultClick?: (e: React.MouseEvent<HTMLElement>) => void,
+  onResultClick?: (e: React.MouseEvent<HTMLElement>) => void;
 };
 
 const StatusLink: React.FC<StatusLinkProps> = ({
@@ -34,16 +34,21 @@ const StatusLink: React.FC<StatusLinkProps> = ({
   active = false,
   subtitle = null,
   status = null,
-  onResultClick = null
+  onResultClick = null,
 }) => (
   <RouterLink
     to={link}
-    className={`flex items-center rounded-3xl p-2 my-2 ${getClassName(selected, active)}`}
+    className={`flex items-center rounded-3xl p-2 my-2 ${getClassName(
+      selected,
+      active
+    )}`}
   >
     <span
       className={`${
-        ((status && stepClassNames[status]) || "bg-gray-400")
-      } h-2 w-2 m-2 rounded-full flex-shrink-0 ${onResultClick && 'hover:bg-red-700'}`}
+        (status && stepClassNames[status]) || "bg-gray-400"
+      } h-2 w-2 m-2 rounded-full flex-shrink-0 ${
+        onResultClick && "hover:bg-red-700"
+      }`}
       onClick={onResultClick ? onResultClick : () => {}}
     />
 

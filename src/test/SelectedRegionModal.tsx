@@ -1,14 +1,18 @@
 import React from "react";
-import Modal, {ModalBody, ModalFooter, ModalHeader} from "../Modal";
-import type {StepDefinition, RegionDefinition} from "../Test";
+import Modal, { ModalBody, ModalFooter, ModalHeader } from "../Modal";
+import type { StepDefinition, RegionDefinition } from "../Test";
 
 type SelectedRegionModalProps = {
   region: RegionDefinition;
   onClose: () => void;
-  onSelect: (step: StepDefinition) => void
+  onSelect: (step: StepDefinition) => void;
 };
 
-const SelectedRegionModal = ({region, onClose, onSelect}: SelectedRegionModalProps) => (
+const SelectedRegionModal = ({
+  region,
+  onClose,
+  onSelect,
+}: SelectedRegionModalProps) => (
   <Modal onClose={onClose}>
     <ModalBody>
       <ModalHeader>
@@ -16,26 +20,32 @@ const SelectedRegionModal = ({region, onClose, onSelect}: SelectedRegionModalPro
       </ModalHeader>
     </ModalBody>
     <ModalFooter>
-      <button className="shadow-md bg-green-700 hover:bg-green-800 text-white font-medium py-2 px-4 rounded-full my-2 ml-2"
-              onClick={() => onSelect({
-                type: 'assertion',
-                definition: {
-                  type: 'text',
-                  target: region.text
-                }
-              })}
+      <button
+        className="shadow-md bg-green-700 hover:bg-green-800 text-white font-medium py-2 px-4 rounded-full my-2 ml-2"
+        onClick={() =>
+          onSelect({
+            type: "assertion",
+            definition: {
+              type: "text",
+              target: region.text,
+            },
+          })
+        }
       >
         Assert visible
       </button>
 
-      <button className="shadow-md bg-blue-700 hover:bg-blue-800 text-white font-medium py-2 px-4 rounded-full my-2 ml-2"
-              onClick={() => onSelect({
-                type: 'event',
-                definition: {
-                  type: 'click',
-                  target: region.text
-                }
-              })}
+      <button
+        className="shadow-md bg-blue-700 hover:bg-blue-800 text-white font-medium py-2 px-4 rounded-full my-2 ml-2"
+        onClick={() =>
+          onSelect({
+            type: "event",
+            definition: {
+              type: "click",
+              target: region.text,
+            },
+          })
+        }
       >
         Click
       </button>

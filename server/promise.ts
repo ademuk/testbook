@@ -8,16 +8,20 @@ export const promiseSequence = <T>(tasks: (() => Promise<T>)[]) =>
   );
 
 export const chunk = <T>(items: T[], count: number): T[][] => {
-  let i = 0, result = [];
+  let i = 0,
+    result = [];
   while (i < items.length) {
     result.push(items.slice(i, (i += count)));
   }
   return result;
 };
 
-export const promiseBatch = <T>(tasks: (() => Promise<T>)[], batchSize: number) =>
+export const promiseBatch = <T>(
+  tasks: (() => Promise<T>)[],
+  batchSize: number
+) =>
   promiseSequence(
-    chunk(tasks, batchSize).map((batchedTasks) =>
-      () => Promise.all(batchedTasks.map((batchedTask) => batchedTask()))
+    chunk(tasks, batchSize).map((batchedTasks) => () =>
+      Promise.all(batchedTasks.map((batchedTask) => batchedTask()))
     )
   ).then((batches) => batches.flat());

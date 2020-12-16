@@ -1,7 +1,7 @@
 /* eslint-disable react/forbid-foreign-prop-types */
 
-import * as m from 'module';
-import {inferPropTypes} from "./propTypes";
+import * as m from "module";
+import { inferPropTypes } from "./propTypes";
 
 declare global {
   interface Window {

@@ -6,9 +6,6 @@
     "moduleResolution": "node",
     "sourceMap": true,
     "outDir": "build",
-    "lib": [
-      "es2019",
-      "DOM"
-    ]
+    "lib": ["es2019", "DOM"]
   }
 }

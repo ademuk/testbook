@@ -1,4 +1,4 @@
-import {ArrowFunction, Project, Node} from "ts-morph";
+import { ArrowFunction, Project, Node } from "ts-morph";
 
 const valueMap = {
   "an array": "array",
@@ -68,8 +68,7 @@ const getNodeParameters = (node) => {
     Node.isVariableDeclaration(node) &&
     Node.isArrowFunction(node.getInitializer())
   ) {
-    return (node.getInitializer() as ArrowFunction)
-        .getParameters();
+    return (node.getInitializer() as ArrowFunction).getParameters();
   }
 
   if (Node.isFunctionDeclaration(node)) {
@@ -104,7 +103,8 @@ export const getTsPropTypes = (
   const [firstParam] = nodeParameters;
 
   return Promise.resolve(
-    firstParam.getType()
+    firstParam
+      .getType()
       .getProperties()
       .reduce(
         (prev, curr) => ({
@@ -113,7 +113,8 @@ export const getTsPropTypes = (
             curr.getValueDeclaration().getType().getText(),
             !curr.getValueDeclaration().getType().isNullable(),
           ],
-        }), {}
+        }),
+        {}
       )
   );
 };
