@@ -52,7 +52,7 @@ const getWrapperComponent = () => {
   return Promise.resolve();
 };
 
-const render = (WrapperComponent) =>
+const render = (WrapperComponent): Promise<void> =>
   new Promise((resolve) => {
     act(() => {
       ReactDOM.render(
@@ -73,11 +73,12 @@ const render = (WrapperComponent) =>
     });
   });
 
-window.result = getWrapperComponent().then((WrapperComponent) =>
-  render(WrapperComponent).then(
-    () =>
-      new Promise((resolve, reject) =>
-        setTimeout(() => (window.error ? reject(window.error) : resolve()), 0)
-      )
-  )
+window.result = getWrapperComponent().then(
+  (WrapperComponent): Promise<void> =>
+    render(WrapperComponent).then(
+      () =>
+        new Promise((resolve, reject) =>
+          setTimeout(() => (window.error ? reject(window.error) : resolve()), 0)
+        )
+    )
 );

@@ -156,7 +156,7 @@ const compileModuleWithHostWebpack = (
   const craWebpackConfig = require(path.join(
     hostNodeModulesPath,
     "react-scripts/config/webpack.config"
-  ))(process.env.NODE_ENV);
+  ))("production");
   const outputModulePath = modulePath.replace(/\.[^.]+$/, ".js");
 
   return new Promise((resolve, reject) =>
@@ -194,15 +194,13 @@ const compileModuleWithHostWebpack = (
   );
 };
 
-const compileWrapperWithWebpack = (
-  wrapperModulePath: string
-): Promise<string> =>
+const compileWithWebpack = (modulePath: string): Promise<string> =>
   new Promise((resolve, reject) =>
     webpack(
       {
-        entry: [wrapperModulePath],
+        entry: [modulePath],
         output: {
-          filename: path.basename(wrapperModulePath),
+          filename: path.basename(modulePath),
         },
         module: {
           rules: [
@@ -235,10 +233,7 @@ const compileWrapperWithWebpack = (
 
         return resolve(
           path.resolve(
-            path.join(
-              stats.toJson().outputPath,
-              path.basename(wrapperModulePath)
-            )
+            path.join(stats.toJson().outputPath, path.basename(modulePath))
           )
         );
       }
@@ -268,7 +263,6 @@ const compileWrapperAndModuleWithWebpack = (
         output: {
           filename: path.join(path.basename(wrapperModulePath), moduleFilename),
         },
-        mode: "development",
         module: {
           rules: [
             {
@@ -608,7 +602,7 @@ const render = (
     });
 
 const setupVmContextWithContainerAndMocks = (): Promise<[Context, Logger]> =>
-  compileWrapperWithWebpack(require.resolve("./setupContainerAndMocks")).then(
+  compileWithWebpack(require.resolve("./setupContainerAndMocks")).then(
     (moduleCode) => {
       const script = new Script(moduleCode);
       const logger = setupConsoleLogger();
