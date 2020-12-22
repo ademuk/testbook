@@ -1,7 +1,7 @@
 import {
   findModuleTests,
   LoadedModule,
-  ResultsAndContext,
+  ResultsContextAndLogger,
   runComponentTest,
   serialiseError,
 } from "./server";
@@ -16,7 +16,7 @@ const runComponentTests = (
   file: string,
   component: any
 ): Promise<TestRunnerResult[]> =>
-  promiseSequence<ResultsAndContext>(
+  promiseSequence<ResultsContextAndLogger>(
     component.tests.map((test) => () =>
       runComponentTest(
         path.join(SEARCH_PATH, file),

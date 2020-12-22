@@ -1,9 +1,11 @@
 import { Mock, setupMocks } from "./mocks";
+import { Logger } from "./logger";
 
 declare global {
   interface Window {
     container: HTMLElement;
     mocks: Mock[];
+    console: Logger;
   }
 }
 
