@@ -12,6 +12,7 @@ import webpack from "webpack";
 import { getTsPropTypes } from "./propTypes";
 import openBrowser from "react-dev-utils/openBrowser";
 import { promiseBatch } from "./promise";
+import { Logger, setupConsoleLogger } from "./logger";
 
 const hostNodeModulesPath = path.join(process.cwd(), "node_modules");
 const { act } = require(path.join(hostNodeModulesPath, "react-dom/test-utils"));
@@ -552,12 +553,14 @@ class AssertionError extends Error {
   }
 }
 
-const createDOM = () =>
+const createDOM = (logger?: Logger) =>
   new JSDOM('<!doctype html><html lang="en-GB"><body /></html>', {
     pretendToBeVisual: true,
     runScripts: "dangerously",
     url: "http://localhost",
-    virtualConsole: new VirtualConsole().sendTo(console),
+    virtualConsole: logger
+      ? new VirtualConsole().sendTo((logger as unknown) as Console)
+      : new VirtualConsole(),
   });
 
 const render = (
@@ -604,43 +607,49 @@ const render = (
       );
     });
 
-const setupVmContextWithContainerAndMocks = (): Context =>
+const setupVmContextWithContainerAndMocks = (): Promise<[Context, Logger]> =>
   compileWrapperWithWebpack(require.resolve("./setupContainerAndMocks")).then(
     (moduleCode) => {
       const script = new Script(moduleCode);
-      const context = createDOM().getInternalVMContext();
+      const logger = setupConsoleLogger();
+      const context = createDOM(logger).getInternalVMContext();
       script.runInContext(context);
-      return context;
+      return [context, logger];
     }
   );
 
 const renderComponentSideEffects = (file, exportName, testId, step: number) =>
-  runComponentTest(file, exportName, testId, step).then(([, context]) => {
-    const { container, mocks } = context;
-    if (!container) {
+  runComponentTest(file, exportName, testId, step).then(
+    ([, context, logger]) => {
+      const { container, mocks } = context;
+      if (!container) {
+        return {
+          regions: [],
+          mocks: [],
+        };
+      }
+
+      const elements = findTextNodes(container).map(([e, text]) => ({
+        text,
+        type: ["BUTTON", "A"].includes(e.nodeName) ? "button" : "text",
+        xpath: getElementTreeXPath(e, context),
+      }));
+
       return {
-        regions: [],
-        mocks: [],
+        regions: elements.map((e) => ({
+          ...e,
+          unique: !elements.find(
+            (f) => f.text === e.text && f.xpath !== e.xpath
+          ),
+        })),
+        mocks: mocks.map(({ name, mock }) => ({
+          name,
+          calls: mock.getCalls(),
+        })),
+        logs: logger.getLog(),
       };
     }
-
-    const elements = findTextNodes(container).map(([e, text]) => ({
-      text,
-      type: ["BUTTON", "A"].includes(e.nodeName) ? "button" : "text",
-      xpath: getElementTreeXPath(e, context),
-    }));
-
-    return {
-      regions: elements.map((e) => ({
-        ...e,
-        unique: !elements.find((f) => f.text === e.text && f.xpath !== e.xpath),
-      })),
-      mocks: mocks.map(({ name, mock }) => ({
-        name,
-        calls: mock.getCalls(),
-      })),
-    };
-  });
+  );
 
 const runRenderStep = (
   file,
@@ -738,7 +747,7 @@ type ResultObj = {
   result: Result;
 };
 
-export type ResultsAndContext = [ResultObj[], Context];
+export type ResultsContextAndLogger = [ResultObj[], Context, Logger];
 type ResultAndContext = [Result, Context];
 
 const runStep = (
@@ -757,38 +766,47 @@ export const runComponentTest = (
   exportName,
   testId,
   step?: number
-): Promise<ResultsAndContext> =>
+): Promise<ResultsContextAndLogger> =>
   Promise.all([
     setupVmContextWithContainerAndMocks(),
     getComponentTest(file, exportName, testId),
   ])
     .then(
-      ([context, { steps }]): Promise<ResultsAndContext> =>
+      ([[context, logger], { steps }]): Promise<ResultsContextAndLogger> =>
         steps.reduce(
           (
-            resultsAndContext: Promise<ResultsAndContext>,
+            resultsAndContext: Promise<ResultsContextAndLogger>,
             s: StepDefinition,
             idx: number
-          ): Promise<ResultsAndContext> =>
+          ): Promise<ResultsContextAndLogger> =>
             resultsAndContext.then(
-              ([results, context]): Promise<ResultsAndContext> =>
+              ([results, context]): Promise<ResultsContextAndLogger> =>
                 idx <= (step === undefined ? steps.length - 1 : step) &&
                 !results.find((r) => r.result instanceof Error)
                   ? runStep(file, exportName, s, context).then(
                       ([
                         result,
                         newContext,
-                      ]: ResultAndContext): ResultsAndContext => [
+                      ]: ResultAndContext): ResultsContextAndLogger => [
                         [...results, { result }],
                         newContext,
+                        logger,
                       ]
                     )
-                  : Promise.resolve([results, context] as ResultsAndContext)
+                  : Promise.resolve([
+                      results,
+                      context,
+                      logger,
+                    ] as ResultsContextAndLogger)
             ),
-          Promise.resolve([[], context] as ResultsAndContext)
+          Promise.resolve([[], context, logger] as ResultsContextAndLogger)
         )
     )
-    .then(([results, context]) => [results, context.close() || context]);
+    .then(([results, context, logger]) => [
+      results,
+      context.close() || context,
+      logger,
+    ]);
 
 const getComponentPropTypes = (modulePath, exportName) => {
   if (/tsx?$/.test(modulePath)) {
@@ -813,6 +831,7 @@ const getComponentPropTypes = (modulePath, exportName) => {
       const script = new Script(moduleCode);
       context.exportName = exportName;
       script.runInContext(context);
+      context.close();
       return context.result;
     });
 };

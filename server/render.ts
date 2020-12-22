@@ -52,26 +52,32 @@ const getWrapperComponent = () => {
   return Promise.resolve();
 };
 
-window.result = getWrapperComponent().then((WrapperComponent) => {
-  act(() => {
-    ReactDOM.render(
-      React.createElement(
-        ErrorBoundary,
-        null,
-        WrapperComponent
-          ? React.createElement(
-              WrapperComponent,
-              window.wrapperProps,
-              React.createElement(Component, window.props)
-            )
-          : React.createElement(Component, window.props)
-      ),
-      window.container,
-      () => {
-        if (window.error) {
-          throw window.error;
-        }
-      }
-    );
+const render = (WrapperComponent) =>
+  new Promise((resolve) => {
+    act(() => {
+      ReactDOM.render(
+        React.createElement(
+          ErrorBoundary,
+          null,
+          WrapperComponent
+            ? React.createElement(
+                WrapperComponent,
+                window.wrapperProps,
+                React.createElement(Component, window.props)
+              )
+            : React.createElement(Component, window.props)
+        ),
+        window.container,
+        resolve
+      );
+    });
   });
-});
+
+window.result = getWrapperComponent().then((WrapperComponent) =>
+  render(WrapperComponent).then(
+    () =>
+      new Promise((resolve, reject) =>
+        setTimeout(() => (window.error ? reject(window.error) : resolve()), 0)
+      )
+  )
+);
