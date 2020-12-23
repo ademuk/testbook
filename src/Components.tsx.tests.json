@@ -305,16 +305,6 @@
             {
               "type": "assertion",
               "definition": {
-                "type": "mock",
-                "target": {
-                  "name": "fetch",
-                  "args": ["/module-component"]
-                }
-              }
-            },
-            {
-              "type": "assertion",
-              "definition": {
                 "type": "text",
                 "target": "App.tsx"
               }
@@ -331,20 +321,6 @@
               "definition": {
                 "type": "text",
                 "target": "Components.tsx"
-              }
-            },
-            {
-              "type": "assertion",
-              "definition": {
-                "type": "text",
-                "target": "Components"
-              }
-            },
-            {
-              "type": "assertion",
-              "definition": {
-                "type": "text",
-                "target": "You don't have any tests yet"
               }
             }
           ],
