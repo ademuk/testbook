@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import * as React from "react";
 // @ts-ignore
 import JSONInput from "react-json-editor-ajrm";
@@ -21,12 +21,10 @@ const EditMockModal: React.FC<EditStepProps> = ({
   onClose,
   onUpdateStep,
 }) => {
-  const [returnValue, setReturnValue] = useState({});
+  const [returnValue, setReturnValue] = useState(
+    step.definition.return ? step.definition.return : {}
+  );
   const [isValidJson, setIsValidJson] = useState(true);
-
-  useEffect(() => {
-    setReturnValue(step.definition.return ? step.definition.return : {});
-  }, [step.definition.return]);
 
   const handleReturnValueChange = ({
     error,
@@ -62,7 +60,7 @@ const EditMockModal: React.FC<EditStepProps> = ({
           <div className="mt-2 flex">
             <JSONInput
               id="id"
-              placeholder={isValidJson ? returnValue : {}}
+              placeholder={step.definition.return}
               theme="light_mitsuketa_tribute"
               locale={locale}
               width="100%"
