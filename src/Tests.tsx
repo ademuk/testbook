@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import * as React from "react";
 import { RouteComponentProps } from "react-router-dom";
 import queryString from "query-string";
 import StatusLink from "./StatusLink";

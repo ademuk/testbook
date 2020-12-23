@@ -1,4 +1,4 @@
-import React from "react";
+import * as React from "react";
 import StatusLink from "../StatusLink";
 import type { StepDefinition, StepResult } from "../Test";
 import { renderMockCallArgsLabel } from "./SelectedMockCallModal";

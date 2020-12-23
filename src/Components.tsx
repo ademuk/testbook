@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import LoadingIndicator from "./LoadingIndicator";
 import StatusLink from "./StatusLink";
 import { TestDefinition } from "./Test";

@@ -1,4 +1,4 @@
-import React from "react";
+import * as React from "react";
 
 const LoadingIndicator: React.FC = ({ children }) => (
   <div className="flex h-full">

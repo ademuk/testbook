@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import * as React from "react";
 // @ts-ignore
 import JSONInput from "react-json-editor-ajrm";
 // @ts-ignore

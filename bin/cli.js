@@ -7,7 +7,7 @@ const { startServer } = require("../server/build/server");
 
 const [mode = "default"] = process.argv.slice(2);
 
-process.env.NODE_ENV = process.env.NODE_ENV || "development";
+process.env.NODE_ENV = "production";
 
 const runCli = () => {
   runner();

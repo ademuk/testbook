@@ -1,4 +1,4 @@
-import React from "react";
+import { Fragment } from "react";
 import Modal, { ModalBody, ModalFooter, ModalHeader } from "../Modal";
 import type { StepDefinition, StepResult } from "../Test";
 import { renderStepLabel } from "./Step";
@@ -22,10 +22,10 @@ const StepResultModal = ({
       </ModalHeader>
       {error &&
         Object.entries(error).map(([key, value]) => (
-          <React.Fragment key={key}>
+          <Fragment key={key}>
             <h2 className="font-bold mt-2 mb-1">{capitalise(key)}</h2>
             <code className="whitespace-pre-line text-xs">{value}</code>
-          </React.Fragment>
+          </Fragment>
         ))}
     </ModalBody>
     <ModalFooter>
