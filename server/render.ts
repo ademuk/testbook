@@ -78,7 +78,7 @@ window.result = getWrapperComponent().then(
     render(WrapperComponent).then(
       () =>
         new Promise((resolve, reject) =>
-          setTimeout(() => (window.error ? reject(window.error) : resolve()), 0)
+          setTimeout(() => (window.error ? reject(window.error) : resolve()))
         )
     )
 );

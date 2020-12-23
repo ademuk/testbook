@@ -1,4 +1,5 @@
-import React, { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
+import * as React from "react";
 import { Link as RouterLink, RouteComponentProps } from "react-router-dom";
 import type { History } from "history";
 import queryString from "query-string";
@@ -111,7 +112,7 @@ const Test = ({ history, file, exportName, test, step }: TestProps) => {
     if (test && step > steps.length - 1) {
       history.replace(
         `/tests/${test.id}?file=${file}&exportName=${exportName}&step=${
-          test.steps.length - 1
+          (steps.length ? steps.length : test.steps.length) - 1
         }`
       );
     }
@@ -245,6 +246,7 @@ const Test = ({ history, file, exportName, test, step }: TestProps) => {
             }}
             onKeyPress={handleUpdateTestNameKeyPress}
             ref={editableTestNameRef}
+            suppressContentEditableWarning={true}
           >
             {testName}
           </h1>{" "}
@@ -289,7 +291,7 @@ const Test = ({ history, file, exportName, test, step }: TestProps) => {
                 <h3 className="text-xl p-2">{capitalise(type)}</h3>
                 {regions.map((r) => (
                   <button
-                    className={`text-gray-700 hover:text-gray-600 hover:bg-gray-100 p-2 px-4 my-2 rounded-full focus:rounded-full w-full text-left`}
+                    className={`text-gray-700 hover:text-gray-600 hover:bg-gray-100 py-2 px-4 my-2 rounded-full focus:rounded-full w-full text-left`}
                     key={`${r.xpath}${r.text}`}
                     onClick={() => setSelectedRegion(r)}
                   >
@@ -311,7 +313,7 @@ const Test = ({ history, file, exportName, test, step }: TestProps) => {
                     <h3 className="text-xl p-2">{label(name)}</h3>
                     {calls.map((args, i) => (
                       <button
-                        className={`text-gray-700 hover:text-gray-600 hover:bg-gray-100 p-2 my-2 rounded-full focus:rounded-full text-left`}
+                        className={`text-gray-700 hover:text-gray-600 hover:bg-gray-100 py-2 px-4 my-2 rounded-full focus:rounded-full w-full text-left`}
                         key={[i, ...args].join("")}
                         onClick={() => setSelectedMockCall([name, args])}
                       >

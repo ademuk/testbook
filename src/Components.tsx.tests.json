@@ -141,6 +141,190 @@
             }
           ],
           "name": "Render project components"
+        },
+        {
+          "id": "0837dde0-453e-11eb-8435-8385c7863d38",
+          "steps": [
+            {
+              "type": "mock",
+              "definition": {
+                "name": "fetch",
+                "args": ["/module-component"],
+                "return": [
+                  {
+                    "file": "App.tsx",
+                    "components": [
+                      {
+                        "exportName": "default",
+                        "name": "App"
+                      }
+                    ]
+                  },
+                  {
+                    "file": "Components.tsx",
+                    "components": [
+                      {
+                        "exportName": "default",
+                        "name": "Components"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "type": "mock",
+              "definition": {
+                "name": "fetch",
+                "args": ["/module-test"],
+                "return": [
+                  {
+                    "file": "App.tsx",
+                    "components": [
+                      {
+                        "name": "App",
+                        "tests": [
+                          {
+                            "id": "c34b2f30-1c83-11eb-a8c1-1da52322ddf8",
+                            "steps": [
+                              {
+                                "type": "mock",
+                                "definition": {
+                                  "name": "fetch",
+                                  "args": ["/module-component"],
+                                  "return": []
+                                }
+                              },
+                              {
+                                "type": "render",
+                                "definition": {
+                                  "props": {}
+                                }
+                              },
+                              {
+                                "type": "event",
+                                "definition": {
+                                  "type": "click",
+                                  "target": "Look for other components"
+                                }
+                              }
+                            ]
+                          }
+                        ],
+                        "exportName": "default"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "type": "render",
+              "definition": {
+                "props": {},
+                "wrapper": {
+                  "file": "react-router-dom",
+                  "exportName": "MemoryRouter",
+                  "props": {}
+                }
+              }
+            },
+            {
+              "type": "event",
+              "definition": {
+                "type": "click",
+                "target": "Look for other components"
+              }
+            },
+            {
+              "type": "assertion",
+              "definition": {
+                "type": "text",
+                "target": "Components.tsx"
+              }
+            },
+            {
+              "type": "assertion",
+              "definition": {
+                "type": "text",
+                "target": "Components"
+              }
+            }
+          ],
+          "name": "Look for other components"
+        },
+        {
+          "id": "6e725e50-453e-11eb-8435-8385c7863d38",
+          "steps": [
+            {
+              "type": "mock",
+              "definition": {
+                "name": "fetch",
+                "args": ["/module-component"],
+                "return": [
+                  {
+                    "file": "App.tsx",
+                    "components": [
+                      {
+                        "exportName": "default",
+                        "name": "App"
+                      }
+                    ]
+                  },
+                  {
+                    "file": "Components.tsx",
+                    "components": [
+                      {
+                        "exportName": "default",
+                        "name": "Components"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "type": "mock",
+              "definition": {
+                "name": "fetch",
+                "args": ["/module-test"],
+                "return": []
+              }
+            },
+            {
+              "type": "render",
+              "definition": {
+                "props": {},
+                "wrapper": {
+                  "file": "react-router-dom",
+                  "exportName": "MemoryRouter",
+                  "props": {}
+                }
+              }
+            },
+            {
+              "type": "assertion",
+              "definition": {
+                "type": "text",
+                "target": "App.tsx"
+              }
+            },
+            {
+              "type": "assertion",
+              "definition": {
+                "type": "text",
+                "target": "App"
+              }
+            },
+            {
+              "type": "assertion",
+              "definition": {
+                "type": "text",
+                "target": "Components.tsx"
+              }
+            }
+          ],
+          "name": "Load components if no tests found"
         }
       ]
     }

@@ -683,7 +683,9 @@ const runEventStep = (
     );
   });
 
-  return Promise.resolve(["success", context]);
+  return new Promise((resolve) =>
+    setTimeout(() => resolve(["success", context]), 10)
+  );
 };
 
 const runAssertionStep = (
