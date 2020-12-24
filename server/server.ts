@@ -41,7 +41,7 @@ export const findModuleTests = (searchPath: string): Promise<LoadedModule[]> =>
           files.map(([fileName, file]) => ({
             file: fileName
               .replace(/\.tests\.json$/, "")
-              .replace(new RegExp(`^src${path.sep}`), ""),
+              .replace(new RegExp(`^${searchPath}${path.sep}`), ""),
             components: file.components.map((c) => ({
               ...c,
               exportName: c.name,
@@ -86,7 +86,10 @@ const findModulesWithComponents = (
                   ...c,
                   ...(c.error && { error: serialiseError(c.error) }),
                 })),
-                file: m.file.replace(new RegExp(`^src${path.sep}`), ""),
+                file: m.file.replace(
+                  new RegExp(`^${searchPath}${path.sep}`),
+                  ""
+                ),
               }))
           )
           .then(resolve);
@@ -846,7 +849,7 @@ const PORT = 9010;
 
 app.use(express.json());
 
-const SEARCH_PATH = "./src";
+const SEARCH_PATH = "src";
 
 app.get("/module-test", (req, res, next) =>
   findModuleTests(SEARCH_PATH)
