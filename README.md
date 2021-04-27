@@ -2,11 +2,13 @@
 
 Testbook is a tool for creating React component tests.
 
-It currently supports apps created by CRA.
+https://twitter.com/ademuk/status/1336427421105614853?s=20
 
 ## Running
 
-Testbook runs in your browser, to start it from your CRA project use the following command:
+Testbook runs in your browser, to start it from your project use the following command:
+
+NOTE: Currently supports [Create React App](https://github.com/facebook/create-react-app) apps.
 
 ```
 npx testbook
